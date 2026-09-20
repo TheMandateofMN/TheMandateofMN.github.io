@@ -16,10 +16,11 @@
 }
 
 :root {
-  --ink: #1c1a17;
+  --paper: #f3ecdc;
+  --ink: #3f2e1f;
   --ink-soft: #6f6759;
   --gold: #b8922a;
-  --rule: #e4e0d7;
+  --rule: #d8ccb4;
   --substack: #ff6719;
   --border-width: 120px;
   /* the tile is 140x560 and the flourish 140x150, both drawn to the margin's
@@ -43,7 +44,7 @@ body {
 }
 
 body {
-  background: #ffffff;
+  background: var(--paper);
   color: var(--ink);
   font-family: "EB Garamond", Garamond, "Times New Roman", serif;
   -webkit-font-smoothing: antialiased;
@@ -69,7 +70,7 @@ body {
   flex-direction: column;
   padding: clamp(1.25rem, 3.5vw, 2.5rem) 0 clamp(2rem, 4vw, 3rem);
   overflow: hidden;
-  background: #ffffff;
+  background: var(--paper);
 }
 
 /* marginal vines ---------------------------------------------------------- */
@@ -105,7 +106,7 @@ body {
     var(--half-tile),
     round(down, calc(100% - 2 * var(--flourish)), var(--half-tile))
   );
-  background-image: url("assets/vine.svg?v=21");
+  background-image: url("assets/vine.svg?v=22");
   background-repeat: repeat-y;
   background-position: center top;
   background-size: var(--border-width) auto;
@@ -114,7 +115,7 @@ body {
 .vine-tip {
   flex: 0 0 auto;
   height: var(--flourish);
-  background-image: url("assets/vine-tip.svg?v=21");
+  background-image: url("assets/vine-tip.svg?v=22");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: var(--border-width) auto;
@@ -241,14 +242,6 @@ body {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink);
-}
-
-.colophon__meta {
-  margin: -0.35rem 0 0;
-  font-family: var(--sans);
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  color: var(--ink-soft);
 }
 
 /* narrower pages --------------------------------------------------------- */

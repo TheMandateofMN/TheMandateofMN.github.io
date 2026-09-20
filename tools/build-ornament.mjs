@@ -233,6 +233,7 @@ const PIGMENT = {
   gold: { deep: GILD.deep, mid: GILD.mid, light: GILD.light },
   vermilion: { deep: "#7c2213", mid: "#b0402a", light: "#d1795c" },
   madder: { deep: "#54172c", mid: "#8b3048", light: "#b06d80" },
+  minium: { deep: "#9a3d12", mid: "#d2661f", light: "#eea45f" },
   ultramarine: { deep: "#1b2f6b", mid: "#2f4f96", light: "#7392c6" },
   azurite: { deep: "#1d4560", mid: "#3a6f92", light: "#7ba3bd" },
   verdigris: { deep: "#2f4630", mid: "#54704a", light: "#8fa471" },
@@ -765,7 +766,7 @@ function paintedPage(viewBox, w, h, body) {
 function buildVine() {
   resetDefs();
 
-  const leafBlue = acanthusDef(PIGMENT.ultramarine, { len: 50, wide: 19 });
+  const leafOrange = acanthusDef(PIGMENT.minium, { len: 50, wide: 19 });
   const leafGold = acanthusDef(PIGMENT.gold, { len: 47, wide: 18 });
   const leafGreen = acanthusDef(PIGMENT.verdigris, { len: 48, wide: 18 });
   const leafOlive = acanthusDef(PIGMENT.terreverte, { len: 42, wide: 16, lobes: 4 });
@@ -774,7 +775,7 @@ function buildVine() {
 
   const blossomVermilion = bloomDef(PIGMENT.vermilion, { outer: 6, inner: 5 });
   const blossomMadder = bloomDef(PIGMENT.madder, { outer: 5, inner: 5, len: 25, wide: 10.5 });
-  const blossomBlue = bloomDef(PIGMENT.ultramarine, { outer: 6, inner: 0, courses: 1, len: 24 });
+  const blossomOrange = bloomDef(PIGMENT.minium, { outer: 6, inner: 0, courses: 1, len: 24 });
   const pomegranate = seedHeadDef(PIGMENT.madder);
   const astrolabe = astrolabeDef({ r: 12 });
   const astrolabeSmall = astrolabeDef({ r: 8.4 });
@@ -822,17 +823,17 @@ function buildVine() {
   /* Nothing may cross y = 0 or y = TILE_H: the tile repeats down the margin,
      so an ornament that overhangs an end is sliced flat at every seam. */
   const scrolls = [
-    { u: 0.24, side: -1, id: leafBlue, s: 0.92 },
+    { u: 0.24, side: -1, id: leafOrange, s: 0.92 },
     { u: 0.34, side: 1, id: leafGold, s: 1 },
     { u: 0.54, side: -1, id: leafGreen, s: 0.96 },
     { u: 0.7, side: 1, id: leafOlive, s: 0.86 },
     { u: 0.86, side: -1, id: leafGold, s: 0.94 },
     // clear of y = 280: this leaf used to straddle the half-tile cut line
-    { u: 0.96, side: 1, id: leafBlue, s: 1 },
+    { u: 0.96, side: 1, id: leafOrange, s: 1 },
     { u: 1.24, side: -1, id: leafOlive, s: 0.88 },
     { u: 1.42, side: 1, id: leafGreen, s: 0.96 },
     { u: 1.6, side: -1, id: leafGold, s: 0.94 },
-    { u: 1.86, side: 1, id: leafBlue, s: 0.9 },
+    { u: 1.86, side: 1, id: leafOrange, s: 0.9 },
   ];
   for (const s of scrolls) {
     const p = stemAt(s.u);
@@ -868,7 +869,7 @@ function buildVine() {
   body.push(at(budVermilion, stemAt(1.1)[0] + 6, stemAt(1.1)[1], 24, 0.95));
   body.push(at(pomegranate, 102, 352, -10, 0.92));
   body.push(at(astrolabeSmall, ...stemAt(1.5), -14, 1));
-  body.push(at(blossomBlue, 38, 486, 12, 0.95));
+  body.push(at(blossomOrange, 38, 486, 12, 0.95));
 
   // bezants scattered through the margin, as gold dots always are
   const r = rng(0x2f19);
@@ -887,7 +888,7 @@ function buildVine() {
 
 function buildTip() {
   resetDefs();
-  const leafBlue = acanthusDef(PIGMENT.ultramarine, { len: 40, wide: 14, lobes: 3 });
+  const leafOrange = acanthusDef(PIGMENT.minium, { len: 40, wide: 14, lobes: 3 });
   const leafGreen = acanthusDef(PIGMENT.verdigris, { len: 36, wide: 12.5, lobes: 3 });
   const sprigGreen = serratedLeafDef(PIGMENT.verdigris);
   const blossom = bloomDef(PIGMENT.vermilion, { outer: 6, inner: 5 });
@@ -903,7 +904,7 @@ function buildTip() {
   // leaves the bottom edge on the tangent the tile enters on, so the join with
   // the repeating vine reads as one continuous stem
   const body = [stem("M70 150 C61 124 78 100 70 62")];
-  body.push(at(leafBlue, 74, 132, -66, 0.95));
+  body.push(at(leafOrange, 74, 132, -66, 0.95));
   body.push(at(leafGreen, 64, 112, 66, 0.9, -1));
   body.push(at(sprigGreen, 72, 96, -50, 0.76));
   body.push(at(curlR, 78, 140, -22, 0.88));
@@ -923,13 +924,13 @@ function buildTip() {
 function buildProof() {
   resetDefs();
   const specimens = [
-    acanthusDef(PIGMENT.ultramarine, { len: 50, wide: 19 }),
+    acanthusDef(PIGMENT.minium, { len: 50, wide: 19 }),
     acanthusDef(PIGMENT.gold, { len: 47, wide: 18 }),
     acanthusDef(PIGMENT.verdigris, { len: 43, wide: 16, lobes: 4 }),
     serratedLeafDef(PIGMENT.terreverte),
     bloomDef(PIGMENT.vermilion, { outer: 6, inner: 5 }),
     bloomDef(PIGMENT.madder, { outer: 5, inner: 5, len: 25, wide: 10.5 }),
-    bloomDef(PIGMENT.ultramarine, { outer: 6, inner: 0, courses: 1, len: 24 }),
+    bloomDef(PIGMENT.minium, { outer: 6, inner: 0, courses: 1, len: 24 }),
     seedHeadDef(PIGMENT.madder),
     astrolabeDef({ r: 12 }),
     helixDef({}),
