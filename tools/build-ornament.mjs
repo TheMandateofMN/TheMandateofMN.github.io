@@ -552,9 +552,9 @@ const TAU_DEG = (i, n) => (360 / n) * i;
  */
 function astrolabeDef({ r = 12 } = {}) {
   const gild = gildGradient();
-  const mater = washGradient(PIGMENT.ultramarine, 40);
+  const mater = washGradient(PIGMENT.madder, 40);
   const parts = [
-    // gilded limb over a lapis mater, so the roundel reads even at margin size
+    // gilded limb over a madder mater, so the roundel reads even at margin size
     `<circle r="${f(r)}" fill="url(#${gild})" stroke="${INK}" stroke-width="0.9"/>`,
     `<circle r="${f(r * 0.72)}" fill="url(#${mater})" stroke="${INK}" stroke-width="0.7"/>`,
   ];

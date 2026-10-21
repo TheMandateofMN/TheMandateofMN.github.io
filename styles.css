@@ -22,13 +22,22 @@
   --gold: #b8922a;
   --rule: #d8ccb4;
   --substack: #ff6719;
-  --border-width: 120px;
+  --border-width: 136px;
   /* the tile is 140x560 and the flourish 140x150, both drawn to the margin's
      width; the stem repeats every half tile, which is the unit the vine's
      height snaps to so it is never cut mid-ornament */
   --half-tile: calc(var(--border-width) * 2);
   --flourish: calc(var(--border-width) * 15 / 14);
   --wordmark: clamp(3rem, 9vw, 6.6rem);
+  /* on wide pages the vines are drawn in toward the word, to this distance from
+     its edge (the word is about 3.84 wordmarks across), rather than left out at
+     the edges of the window */
+  --vine-gap: clamp(9rem, 15vw, 17rem);
+  --vine-edge: clamp(0.4rem, 2.4vw, 3rem);
+  --vine-inset: max(
+    var(--vine-edge),
+    calc(50% - var(--wordmark) * 1.92 - var(--vine-gap) - var(--border-width))
+  );
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
 }
 
@@ -89,11 +98,11 @@ body {
 }
 
 .border--left {
-  left: clamp(0.4rem, 2.4vw, 3rem);
+  left: var(--vine-inset);
 }
 
 .border--right {
-  right: clamp(0.4rem, 2.4vw, 3rem);
+  right: var(--vine-inset);
   transform: scaleX(-1);
 }
 
@@ -106,7 +115,7 @@ body {
     var(--half-tile),
     round(down, calc(100% - 2 * var(--flourish)), var(--half-tile))
   );
-  background-image: url("assets/vine.svg?v=22");
+  background-image: url("assets/vine.svg?v=23");
   background-repeat: repeat-y;
   background-position: center top;
   background-size: var(--border-width) auto;
@@ -115,7 +124,7 @@ body {
 .vine-tip {
   flex: 0 0 auto;
   height: var(--flourish);
-  background-image: url("assets/vine-tip.svg?v=22");
+  background-image: url("assets/vine-tip.svg?v=23");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: var(--border-width) auto;
@@ -155,7 +164,7 @@ body {
   display: inline-block;
   font-size: calc(var(--wordmark) * 1.42);
   line-height: 1;
-  margin-right: calc(var(--wordmark) * 0.05);
+  margin-right: calc(var(--wordmark) * -0.015);
 }
 
 .initial__ornament,
@@ -248,23 +257,19 @@ body {
 
 @media (max-width: 960px) {
   :root {
-    --border-width: 86px;
+    --border-width: 96px;
   }
 }
 
 @media (max-width: 620px) {
   :root {
-    --border-width: 50px;
+    --border-width: 54px;
     /* keep the word on one line: a stacked G reads as a separate letter */
     --wordmark: clamp(1.85rem, 10vw, 3.1rem);
   }
 
-  .border--left {
-    left: 0.15rem;
-  }
-
-  .border--right {
-    right: 0.15rem;
+  :root {
+    --vine-edge: 0.15rem;
   }
 
   .folio,
