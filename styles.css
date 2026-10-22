@@ -21,7 +21,6 @@
   --ink-soft: #6f6759;
   --gold: #b8922a;
   --rule: #d8ccb4;
-  --substack: #ff6719;
   --border-width: 136px;
   /* the tile is 140x560 and the flourish 140x150, both drawn to the margin's
      width; the stem repeats every half tile, which is the unit the vine's
@@ -215,28 +214,21 @@ body {
 }
 
 .substack {
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  background: var(--substack);
-  color: #ffffff;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  display: block;
+  border-radius: 0.4rem;
+  transition: transform 160ms ease, filter 160ms ease;
 }
 
 .substack__mark {
-  width: 1.15rem;
-  height: 1.15rem;
-  fill: currentColor;
-  /* the mark's own shapes sit slightly high in the 24-unit box */
-  margin-top: 0.05rem;
+  display: block;
+  width: 3.4rem;
+  height: 4.53rem;
 }
 
 .substack:hover,
 .substack:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(255, 103, 25, 0.32);
+  filter: drop-shadow(0 5px 8px rgba(150, 115, 28, 0.35));
 }
 
 .substack:focus-visible {
