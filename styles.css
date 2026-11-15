@@ -16,11 +16,19 @@
 }
 
 :root {
+  /* the page, its text and the wordmark keep colours of their own */
   --paper: #f3ecdc;
   --ink: #3f2e1f;
   --ink-soft: #6f6759;
+  /* the ornament under the wordmark's initial */
   --gold: #b8922a;
-  --rule: #d8ccb4;
+  /* everything else is coloured from the palette (assets/palette.css), as the vines are:
+     hairlines from its base, what can be pressed from its core, and a streak of jewel
+     for where the keyboard is */
+  --rule: var(--warm-camel);
+  --line: var(--copper-rust);
+  --solid: var(--espresso);
+  --focus: var(--peacock-teal);
   --border-width: 136px;
   /* the tile is 140x560 and the flourish 140x150, both drawn to the margin's
      width; the stem repeats every half tile, which is the unit the vine's
@@ -114,7 +122,7 @@ body {
     var(--half-tile),
     round(down, calc(100% - 2 * var(--flourish)), var(--half-tile))
   );
-  background-image: url("assets/vine.svg?v=23");
+  background-image: url("assets/vine.svg?v=24");
   background-repeat: repeat-y;
   background-position: center top;
   background-size: var(--border-width) auto;
@@ -123,7 +131,7 @@ body {
 .vine-tip {
   flex: 0 0 auto;
   height: var(--flourish);
-  background-image: url("assets/vine-tip.svg?v=23");
+  background-image: url("assets/vine-tip.svg?v=24");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: var(--border-width) auto;
@@ -213,36 +221,33 @@ body {
   background: linear-gradient(90deg, transparent, var(--rule) 22%, var(--rule) 78%, transparent);
 }
 
-.substack {
-  display: block;
-  border-radius: 0.4rem;
-  transition: transform 160ms ease, filter 160ms ease;
-}
-
-.substack__mark {
-  display: block;
-  width: 3.4rem;
-  height: 4.53rem;
-}
-
-.substack:hover,
-.substack:focus-visible {
-  transform: translateY(-2px);
-  filter: drop-shadow(0 5px 8px rgba(150, 115, 28, 0.35));
-}
-
-.substack:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
-}
-
-.colophon__lede {
-  margin: 0;
+/* the way in for members: a small copper-ruled button at the foot of the page */
+.colophon__door {
+  display: inline-block;
+  /* the tracking leaves a gap after the last letter; the left padding balances it */
+  padding: 0.42rem 1.1rem 0.42rem calc(1.1rem + 0.16em);
+  border: 1px solid var(--line);
+  border-radius: 2px;
   font-family: "EB Garamond", Garamond, serif;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  text-decoration: none;
   color: var(--ink);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.colophon__door:hover,
+.colophon__door:focus-visible {
+  border-color: var(--solid);
+  background: var(--solid);
+  color: var(--paper);
+}
+
+.colophon__door:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
 /* narrower pages --------------------------------------------------------- */
@@ -269,14 +274,10 @@ body {
     padding-left: calc(var(--border-width) + 0.7rem);
     padding-right: calc(var(--border-width) + 0.7rem);
   }
-
-  .colophon__lede {
-    font-size: 0.95rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .substack {
+  .colophon__door {
     transition: none;
   }
 }

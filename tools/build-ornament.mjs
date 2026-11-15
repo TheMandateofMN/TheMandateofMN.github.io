@@ -218,26 +218,60 @@ function ribbon(pts, w0, w1) {
 
 /* ------------------------------------------------- pigments and gilding */
 
-const INK = "#3a2c1c";
-const WHITE = "#f6f1e2";
-
-const GILD = {
-  light: "#f0dc9c",
-  mid: "#c09a2c",
-  deep: "#96731c",
-  tool: "#6d5210",
+/*
+ * The site's palette, as it is named in assets/palette.css. An SVG used as a
+ * background cannot read a stylesheet's variables, so the colours are written
+ * out here; change one there and it wants changing here too, and the ornament
+ * building again.
+ */
+const PALETTE = {
+  // base
+  chestnut: "#6b4226",
+  espresso: "#33211a",
+  oatCream: "#efe3cc",
+  warmCamel: "#b8926a",
+  // core
+  copperRust: "#a14e26",
+  terracotta: "#bf6234",
+  oxblood: "#6a2320",
+  mahoganyWine: "#5a2a22",
+  // accent
+  roseCopper: "#b87456",
+  deepOlive: "#55532b",
+  deepTeal: "#1f4a45",
+  saffronAmber: "#cc8a2a",
+  // jewel streaks
+  persianTurquoise: "#2a9d94",
+  peacockTeal: "#0f6b6b",
+  cinnabarRed: "#c2371f",
+  malachiteGreen: "#1f6f4a",
+  saffronGold: "#e0a125",
 };
 
-/* ground pigments, after the usual manuscript palette */
+const INK = PALETTE.espresso;
+const WHITE = PALETTE.oatCream;
+
+const GILD = {
+  light: PALETTE.saffronGold,
+  mid: PALETTE.saffronAmber,
+  deep: PALETTE.copperRust,
+  tool: PALETTE.chestnut,
+};
+
+/*
+ * Ground pigments. They keep the names of the manuscript pigments whose place
+ * each takes, but every one is mixed from the palette above: a wash runs from
+ * the deep colour at the base of a form to the light one at its edge.
+ */
 const PIGMENT = {
   gold: { deep: GILD.deep, mid: GILD.mid, light: GILD.light },
-  vermilion: { deep: "#7c2213", mid: "#b0402a", light: "#d1795c" },
-  madder: { deep: "#54172c", mid: "#8b3048", light: "#b06d80" },
-  minium: { deep: "#9a3d12", mid: "#d2661f", light: "#eea45f" },
-  ultramarine: { deep: "#1b2f6b", mid: "#2f4f96", light: "#7392c6" },
-  azurite: { deep: "#1d4560", mid: "#3a6f92", light: "#7ba3bd" },
-  verdigris: { deep: "#2f4630", mid: "#54704a", light: "#8fa471" },
-  terreverte: { deep: "#414b2a", mid: "#6d7a4c", light: "#a4a878" },
+  vermilion: { deep: PALETTE.oxblood, mid: PALETTE.cinnabarRed, light: PALETTE.roseCopper },
+  madder: { deep: PALETTE.mahoganyWine, mid: PALETTE.oxblood, light: PALETTE.roseCopper },
+  minium: { deep: PALETTE.copperRust, mid: PALETTE.terracotta, light: PALETTE.saffronAmber },
+  ultramarine: { deep: PALETTE.deepTeal, mid: PALETTE.peacockTeal, light: PALETTE.persianTurquoise },
+  azurite: { deep: PALETTE.deepTeal, mid: PALETTE.peacockTeal, light: PALETTE.persianTurquoise },
+  verdigris: { deep: PALETTE.deepTeal, mid: PALETTE.malachiteGreen, light: PALETTE.persianTurquoise },
+  terreverte: { deep: PALETTE.deepTeal, mid: PALETTE.deepOlive, light: PALETTE.warmCamel },
 };
 
 /* -------------------------------------------------- defs, deduplicated */
