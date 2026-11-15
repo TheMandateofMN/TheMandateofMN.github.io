@@ -1,0 +1,20 @@
+{
+  "name": "gesserit-forum",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Members' journal and margin notes for gesserit.org",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "dev": "node --env-file-if-exists=.env --watch server.mjs",
+    "add-user": "node --env-file-if-exists=.env bin/add-user.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "katex": "^0.19.1",
+    "marked": "^18.2.0"
+  }
+}

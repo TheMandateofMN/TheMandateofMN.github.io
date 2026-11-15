@@ -1,0 +1,17 @@
+# What the forum holds: its members, what they have written, their password
+# hashes, their pictures. It stays on the machine that runs the forum and is
+# never put into git, which anyone can read.
+server/data/
+
+# The settings of one machine (server/.env.example says what can go in it)
+server/.env
+
+# Put there by `npm install`
+node_modules/
+
+# The picture the palette was taken from. The site reads assets/palette.css,
+# where its colours are written down, and has no use for the picture itself.
+assets/signal-*.png
+
+# Left behind by macOS
+.DS_Store

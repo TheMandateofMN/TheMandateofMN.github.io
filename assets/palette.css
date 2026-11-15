@@ -1,0 +1,40 @@
+/*
+ * The palette: the one place the site's colours are named. The landing page
+ * (styles.css) and the forum (server/public/forum.css) both read it, and take
+ * from it the colour of everything that is not text, a page's own background,
+ * or the wordmark. Change a colour here and it changes wherever it is used.
+ *
+ * The ornament in the margins is drawn from the same colours, but an SVG used
+ * as a background cannot read these: they are written out again at the head of
+ * tools/build-ornament.mjs, which wants running after a change here.
+ *
+ * Each group says how much of what is coloured it should come to, and so what
+ * kind of thing it is used for.
+ */
+
+:root {
+  /* base, about 60%: what a page is built of. Rules, borders, the lines of the graph, what is filled solid. */
+  --chestnut: #6b4226;
+  --espresso: #33211a;
+  --oat-cream: #efe3cc;
+  --warm-camel: #b8926a;
+
+  /* core, about 30%: what a page is worked with. Underlines, quotation bars, buttons, warnings. */
+  --copper-rust: #a14e26;
+  --terracotta: #bf6234;
+  --oxblood: #6a2320;
+  --mahogany-wine: #5a2a22;
+
+  /* accent, about 7%: what is marked out. The canon's gilding, passages picked out, what is well. */
+  --rose-copper: #b87456;
+  --deep-olive: #55532b;
+  --deep-teal: #1f4a45;
+  --saffron-amber: #cc8a2a;
+
+  /* jewel streaks, about 3%, small and saturated: a count, a ring of focus, a tick, a bezant. */
+  --persian-turquoise: #2a9d94;
+  --peacock-teal: #0f6b6b;
+  --cinnabar-red: #c2371f;
+  --malachite-green: #1f6f4a;
+  --saffron-gold: #e0a125;
+}

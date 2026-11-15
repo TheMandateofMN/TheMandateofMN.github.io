@@ -1,0 +1,30 @@
+# Keeps the forum running on a Linux server: started at boot, started again if
+# it falls over. README.md says where this goes.
+#
+#   sudo cp deploy/gesserit-forum.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now gesserit-forum
+#
+# It expects the repository at /srv/gesserit/site, owned by a user called
+# gesserit, and Node 24 or later at /usr/bin/node. Change the three lines
+# below if yours are elsewhere (`command -v node` says where Node is).
+
+[Unit]
+Description=Gesserit members' forum
+After=network.target
+
+[Service]
+User=gesserit
+WorkingDirectory=/srv/gesserit/site/server
+# the settings are read from server/.env, as `npm start` reads them
+ExecStart=/usr/bin/node --env-file-if-exists=.env server.mjs
+Restart=on-failure
+RestartSec=3
+
+# it needs to write to its own data folder and nowhere in the system
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

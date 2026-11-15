@@ -1,0 +1,3664 @@
+/*
+ * The forum, set throughout in EB Garamond like the landing page: one
+ * typeface, with size, weight, italics and small letterspaced capitals doing
+ * the work a second face would. The manuscript is in the details: paper and
+ * ink, rubrics in madder red, rules in copper and saffron, and the landing
+ * page's two-layer illuminated initials. Only code and sign-in names are set
+ * in a monospace.
+ *
+ * The colours of the palette are named in /assets/palette.css, which every
+ * page loads before this. What they are used for is chosen below.
+ *
+ * EB Garamond Initials (Georg Duffner, SIL OFL 1.1 — see assets/fonts/OFL.txt).
+ */
+
+@font-face {
+  font-family: "EB Garamond Initials Ornament";
+  src: url("/assets/fonts/EBGaramond-InitialsF1.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "EB Garamond Initials Letter";
+  src: url("/assets/fonts/EBGaramond-InitialsF2.otf") format("opentype");
+  font-display: swap;
+}
+
+:root {
+  /*
+   * The page and what is written on it. These are not the palette's to
+   * choose: the paper a page is made of, the ink and the reds and golds its
+   * words are lettered in, and the gold under the wordmark's initial.
+   */
+  --paper: #f3ecdc;
+  --paper-light: #faf6ea;
+  --paper-deep: #ebe2cc;
+  --field: #fffdf6;
+  --veil: rgba(250, 246, 234, 0.94);
+  --ink: #3f2e1f;
+  --ink-soft: #6a5f50;
+  --gold: #b8922a;
+  --madder: #8b3048;
+  --red-struck: #7c2e42;
+  /* what those are put to, named apart so that a darker page can choose again */
+  --accent: var(--madder);
+  --versal: var(--madder);
+  --hover: var(--madder);
+  --heading: var(--ink);
+  --bright: var(--ink);
+
+  /*
+   * Everything else is coloured from the palette, each kind of thing from the
+   * part of it that is meant to cover as much as that kind of thing does.
+   *
+   * Base: what a page is built of. Hairlines are camel thinned with the paper
+   * and firmer lines camel itself; what frames a table is chestnut, and what
+   * is filled solid, a button or a dot of the graph, is espresso.
+   */
+  --rule: color-mix(in srgb, var(--warm-camel) 45%, var(--paper));
+  --rule-strong: var(--warm-camel);
+  --frame: var(--chestnut);
+  --solid: var(--espresso);
+  --solid-lit: var(--mahogany-wine);
+  --node: var(--espresso);
+  --node-small: var(--chestnut);
+  --edge: var(--chestnut);
+  --edge-strong: var(--espresso);
+  /* the colour shadows are cast in, espresso as three numbers for rgb() */
+  --shade: 51 33 26;
+  /*
+   * Core: what a page is worked with. Whatever is underlined, quoted or ruled
+   * off to be pressed is copper; the members on the graph are terracotta; a
+   * warning, and what was taken out, is oxblood.
+   */
+  --line: var(--copper-rust);
+  --person: var(--terracotta);
+  --alarm: var(--oxblood);
+  --alarm-wash: color-mix(in srgb, var(--oxblood) 9%, transparent);
+  /*
+   * Accent: what is marked out. Saffron gilds the canon and washes whatever is
+   * picked out of a text; olive washes what was added to one; teal stands for
+   * the other of two.
+   */
+  --gilt: var(--saffron-amber);
+  --gilt-wash: color-mix(in srgb, var(--saffron-amber) 22%, transparent);
+  --gilt-line: color-mix(in srgb, var(--saffron-amber) 60%, transparent);
+  --gilt-lit: color-mix(in srgb, var(--saffron-amber) 52%, transparent);
+  --selection: color-mix(in srgb, var(--saffron-amber) 40%, transparent);
+  --grown-wash: color-mix(in srgb, var(--deep-olive) 20%, transparent);
+  --other: var(--deep-teal);
+  /*
+   * Jewel streaks, small and saturated: turquoise rings where the keyboard is
+   * and ticks what is chosen, cinnabar counts what is new and strikes what is
+   * gone, malachite says that something went well, and saffron gold is the
+   * bezant on a rule.
+   */
+  --focus: var(--peacock-teal);
+  --focus-wash: color-mix(in srgb, var(--peacock-teal) 20%, transparent);
+  --count: var(--cinnabar-red);
+  --struck-line: color-mix(in srgb, var(--cinnabar-red) 60%, transparent);
+  --well: var(--malachite-green);
+  --well-wash: color-mix(in srgb, var(--malachite-green) 10%, transparent);
+  --grown-line: color-mix(in srgb, var(--malachite-green) 60%, transparent);
+  --bezant: var(--saffron-gold);
+  --glint: var(--oat-cream);
+  --sheen: color-mix(in srgb, var(--saffron-gold) 40%, transparent);
+  --sheen-lit: color-mix(in srgb, var(--saffron-gold) 75%, transparent);
+
+  --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* the sizes text is set in: Garamond is small on its body, so these run large */
+  --text: 1.25rem;
+  --text-reading: 1.375rem;
+  --text-small: 1.05rem;
+  --text-caps: 0.9rem;
+  --tracking: 0.14em;
+  --measure: 38rem;
+  --gutter: clamp(1.25rem, 5vw, 2.5rem);
+  color-scheme: light;
+}
+
+/*
+ * Night: the page a member reads once signed in, unless they choose paper.
+ * Black, with the text in pale gold and what was inked or rubricated in
+ * gold: the same page by candlelight. Only the colours are chosen again
+ * here; what must change with them besides is at the foot of this file.
+ *
+ * The palette is the same one. On black its darkest colours are lost, so each
+ * kind of thing takes a lighter neighbour from the same part of it: chestnut
+ * and camel rule the page where camel and chestnut did, terracotta underlines
+ * where copper did, and Persian turquoise stands where the deeper teals did.
+ */
+:root[data-theme="night"] {
+  --paper: #0b0a08;
+  --paper-light: #14120d;
+  --paper-deep: #1d1a12;
+  --field: #100e0a;
+  --veil: rgba(20, 18, 13, 0.94);
+  --ink: #d6c391;
+  --ink-soft: #a3926c;
+  --gold: #c9a84c;
+  --madder: #d98271;
+  --red-struck: #d99486;
+  --accent: #b0914a;
+  --versal: var(--gold);
+  --hover: #f1e2b4;
+  --heading: var(--gold);
+  --bright: #ecdcaa;
+
+  --rule: color-mix(in srgb, var(--chestnut) 45%, var(--paper));
+  --rule-strong: var(--chestnut);
+  --frame: var(--warm-camel);
+  /* oat cream and camel, so that the canon's saffron is not lost among pale gold */
+  --node: var(--oat-cream);
+  --node-small: var(--warm-camel);
+  --edge: var(--warm-camel);
+  --edge-strong: var(--oat-cream);
+  --shade: 0 0 0;
+
+  --line: var(--terracotta);
+  --alarm: var(--cinnabar-red);
+  --alarm-wash: color-mix(in srgb, var(--cinnabar-red) 16%, transparent);
+
+  --gilt-wash: color-mix(in srgb, var(--saffron-amber) 17%, transparent);
+  --gilt-line: color-mix(in srgb, var(--saffron-amber) 55%, transparent);
+  --gilt-lit: color-mix(in srgb, var(--saffron-amber) 44%, transparent);
+  --selection: color-mix(in srgb, var(--saffron-amber) 38%, transparent);
+  --grown-wash: color-mix(in srgb, var(--malachite-green) 30%, transparent);
+  --other: var(--persian-turquoise);
+
+  --focus: var(--persian-turquoise);
+  --focus-wash: color-mix(in srgb, var(--persian-turquoise) 24%, transparent);
+  /* the page's own black is lettered on it, which wants a lighter ground than cinnabar */
+  --count: var(--rose-copper);
+  --struck-line: color-mix(in srgb, var(--cinnabar-red) 80%, transparent);
+  --well-wash: color-mix(in srgb, var(--malachite-green) 18%, transparent);
+  --grown-line: color-mix(in srgb, var(--persian-turquoise) 60%, transparent);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--text);
+  line-height: 1.5;
+  /* figures that sit among lower-case letters as a book's do; capitals get lining ones below */
+  font-variant-numeric: oldstyle-nums;
+  font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* headings break into lines of like length; running text avoids leaving a word alone on its last */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li,
+dd,
+figcaption {
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--hover);
+  text-decoration-color: currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+strong {
+  font-weight: 600;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* the illuminated initial: the letter itself, with its ornament drawn beneath
+   it by a pseudo-element so that the text holds one letter, not two */
+.initial {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  font-family: "EB Garamond Initials Letter", var(--serif);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.initial::before {
+  content: attr(data-letter);
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  font-family: "EB Garamond Initials Ornament", var(--serif);
+  color: var(--gold);
+}
+
+/* small letterspaced capitals: in red they mark a heading, as a scribe's
+   rubric does, and in soft ink they label a field or a column */
+.rubric,
+.section-title,
+.form label,
+.members th,
+.button,
+.footer,
+.gate__back {
+  font-size: var(--text-caps);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: var(--tracking);
+  font-variant-numeric: lining-nums;
+  text-transform: uppercase;
+}
+
+.rubric,
+.section-title {
+  margin: 0;
+  color: var(--accent);
+}
+
+/* who wrote it, kept in one piece if the line has to break */
+.rubric__by {
+  white-space: nowrap;
+}
+
+/* names lead to a member's page; they are underlined only when pointed at */
+.rubric a,
+.note__who a,
+.members td strong a,
+.mention {
+  text-decoration-color: transparent;
+}
+
+.rubric a:hover,
+.note__who a:hover,
+.members td strong a:hover,
+.mention:hover {
+  text-decoration-color: currentColor;
+}
+
+/* under a commentary's dateline: the post it answers */
+.answers {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-small);
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.answers--lead {
+  margin: -0.9rem 0 1.75rem;
+  font-size: var(--text);
+}
+
+/* a word in a ruled box: the box is copper whatever the word is lettered in */
+.tag {
+  margin-left: 0.6em;
+  padding: 0.05em 0.5em 0.05em 0.64em;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-size: 0.85em;
+}
+
+/* a tag in capitals is one size wherever it is worn, and never smaller than can be read */
+.rubric .tag,
+.tag--new,
+.tag--mark,
+.tag--canon {
+  font-size: 0.8rem;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+}
+
+/* Between the parts of a dateline: a space made wide, so that when the line
+   breaks there it is gone, and the part that falls to the next line starts
+   flush. The first of them has a point drawn on it, which goes with it. */
+.rubric__sep {
+  word-spacing: 0.35em;
+}
+
+.rubric__sep--point {
+  background: radial-gradient(circle closest-side, currentColor 0 72%, transparent 100%) center 56% / 0.17em 0.17em
+    no-repeat;
+  word-spacing: 0.75em;
+}
+
+/* a dateline that must take two lines divides evenly: the day, and then by whom */
+.rubric {
+  text-wrap: balance;
+}
+
+.rubric .tag {
+  margin-left: 0;
+}
+
+/* what has not been seen yet is boxed in the cinnabar that counts it */
+.tag--new {
+  border-color: var(--count);
+  color: var(--madder);
+}
+
+/* what is chosen, or is where one is, in the turquoise that ticks it */
+.tag--mark {
+  border-color: var(--focus);
+}
+
+/* worn by what belongs to the canon: gilt, and it leads to the canon */
+.tag--canon,
+.tag--canon:visited {
+  border-color: var(--gilt);
+  background: var(--gilt-wash);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tag--canon:hover {
+  background: var(--gilt);
+  color: var(--field);
+}
+
+/* a count worn beside a name: how many new tags are waiting */
+.badge {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-left: 0.2em;
+  padding: 0 0.4em;
+  border-radius: 1em;
+  background: var(--count);
+  color: var(--paper-light);
+  font-size: 0.7em;
+  font-variant-numeric: lining-nums;
+  line-height: 1.5;
+  text-align: center;
+  vertical-align: 0.12em;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+code {
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  background: var(--paper-deep);
+  font-family: var(--mono);
+  font-size: 0.74em;
+}
+
+/* masthead ---------------------------------------------------------------- */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+  padding: 0.9rem var(--gutter) 0.8rem;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, var(--rule) 12%, var(--rule) 88%, transparent) 1;
+}
+
+.masthead__mark {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 1.7rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.masthead__mark:hover {
+  color: inherit;
+}
+
+.masthead__mark .initial,
+.gate__mark .initial {
+  font-size: 1.42em;
+  margin-right: -0.015em;
+}
+
+/* the places to go, and then whose session this is: on a wide page they share
+   the mark's line, and on a narrower one the places take a line of their own */
+.masthead__nav,
+.masthead__you {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 1.5rem;
+  font-size: 1.15rem;
+}
+
+.masthead__nav {
+  margin-left: auto;
+}
+
+.masthead__nav a,
+.masthead__you a,
+.masthead__you .link {
+  text-decoration-color: transparent;
+}
+
+.masthead__nav a:hover,
+.masthead__you a:hover,
+.masthead__you .link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* where you are */
+.masthead__nav a[aria-current="page"],
+.masthead__you a[aria-current="page"] {
+  text-decoration-color: var(--line);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
+.masthead__you form {
+  display: inline;
+}
+
+@media (max-width: 52rem) {
+  .masthead {
+    align-items: baseline;
+    row-gap: 0.45rem;
+  }
+
+  .masthead__you {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .masthead__nav {
+    order: 3;
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+}
+
+/* an admin has more places to go, and runs out of line sooner */
+@media (max-width: 66rem) {
+  .masthead--long {
+    align-items: baseline;
+    row-gap: 0.45rem;
+  }
+
+  .masthead--long .masthead__you {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .masthead--long .masthead__nav {
+    order: 3;
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+}
+
+/* the page ---------------------------------------------------------------- */
+
+.column {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--gutter));
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 3.5rem) var(--gutter) 3.5rem;
+}
+
+.column--wide {
+  max-width: calc(48rem + 2 * var(--gutter));
+}
+
+.column--full {
+  max-width: calc(70rem + 2 * var(--gutter));
+}
+
+/* a page's opening words, kept to the reading measure even on a wide page */
+.lede {
+  max-width: var(--measure);
+  margin: -0.6rem 0 1.75rem;
+  color: var(--ink-soft);
+}
+
+.page-title {
+  margin: 0 0 1.5rem;
+  font-size: clamp(2.1rem, 6vw, 2.7rem);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.section-title {
+  margin: 2.75rem 0 0.9rem;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0 var(--gutter) 2.25rem;
+  color: var(--ink-soft);
+}
+
+.footer a {
+  text-decoration: none;
+}
+
+.footer__rule {
+  width: 4.5rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--rule) 22%, var(--rule) 78%, transparent);
+}
+
+.empty {
+  margin: 3rem 0;
+  font-size: 1.4rem;
+  font-style: italic;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.empty--notes {
+  margin: 0 0 2rem;
+  font-size: var(--text);
+  text-align: left;
+}
+
+.lost {
+  padding: 3rem 0;
+  text-align: center;
+}
+
+/* prose: the text of a post ---------------------------------------------- */
+
+.prose {
+  overflow-wrap: break-word;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose pre,
+.prose table {
+  margin: 0 0 1em;
+}
+
+.prose h2,
+.prose h3,
+.prose h4 {
+  margin: 1.9em 0 0.5em;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.prose h2 {
+  font-size: 1.36em;
+}
+
+.prose h3 {
+  font-size: 1.16em;
+}
+
+.prose h4 {
+  font-size: 1em;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.prose blockquote {
+  margin: 1.5em 0;
+  padding: 0.1em 0 0.1em 1.2em;
+  border-left: 2px solid var(--line);
+  font-size: 1.06em;
+  font-style: italic;
+}
+
+.prose blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.3em;
+}
+
+.prose li {
+  margin: 0.25em 0;
+}
+
+.prose li::marker {
+  color: var(--accent);
+}
+
+.prose hr {
+  width: 7rem;
+  height: 0.5rem;
+  margin: 2.5em auto;
+  border: 0;
+  background:
+    radial-gradient(circle, var(--bezant) 0 0.17rem, transparent 0.2rem) center / 1.4rem 100% repeat-x;
+}
+
+.prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.75em auto;
+  border-radius: 2px;
+}
+
+/* a picture or a diagram by itself, with its caption beneath */
+.prose .figure {
+  margin: 1.75em 0;
+  text-align: center;
+}
+
+.prose .figure img {
+  margin: 0 auto;
+}
+
+.prose figcaption {
+  margin-top: 0.65em;
+  font-size: 0.86em;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+/* a diagram that could not be drawn shows its source, and says why */
+.prose .figure--undrawn pre {
+  margin: 0;
+  text-align: left;
+}
+
+.prose .figure--undrawn figcaption {
+  font-style: normal;
+  text-align: left;
+  color: var(--madder);
+}
+
+/* formulas: KaTeX's letters are large beside Garamond's, so they are set a little smaller
+   than it would have them; one set apart may be wider than the page, and scrolls */
+.katex {
+  font-size: 1.06em;
+}
+
+.prose .math {
+  margin: 1.2em 0;
+  padding: 0.15em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.prose .katex-display {
+  margin: 0;
+}
+
+.prose pre {
+  padding: 0.9em 1.1em;
+  overflow-x: auto;
+  border-radius: 3px;
+  background: var(--paper-deep);
+  line-height: 1.5;
+}
+
+.prose pre code {
+  padding: 0;
+  background: none;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.prose th,
+.prose td {
+  padding: 0.4em 0.7em;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+.prose th {
+  font-weight: 500;
+}
+
+/* an article opens on a capital three lines deep: illuminated where the
+   initials fonts have the letter, and otherwise a plain versal in red */
+.prose .opens .initial,
+.prose .opens .versal {
+  float: left;
+}
+
+/* after a short opening, more paragraphs run on beside the capital; a list,
+   a figure or anything else that is not a paragraph waits until it is past */
+.prose .opens ~ :not(p) {
+  clear: left;
+}
+
+.prose .opens .initial {
+  margin: 0.05em 0.1em 0 -0.04em;
+  font-size: 4.3em;
+}
+
+/* the wordmark's initial keeps its own gold; one that opens an article is illuminated from the palette */
+.prose .initial::before {
+  color: var(--gilt);
+}
+
+/* by night the ornament recedes into copper, so that the letter stands on it rather than in it */
+:root[data-theme="night"] .prose .initial::before {
+  color: var(--copper-rust);
+}
+
+.prose .opens .versal {
+  margin: 0.07em 0.08em 0 -0.02em;
+  font-size: 5.6em;
+  line-height: 0.74;
+  color: var(--versal);
+}
+
+/* a member tagged by name, and a link to another article here */
+.mention {
+  color: var(--madder);
+}
+
+.wikilink--missing {
+  border-bottom: 1px dotted var(--rule-strong);
+  color: var(--ink-soft);
+  cursor: help;
+}
+
+/* passages that margin notes refer to */
+.cite {
+  background: var(--gilt-wash);
+  color: inherit;
+  box-shadow: 0 1px 0 var(--gilt-line);
+  transition: background-color 400ms ease;
+  scroll-margin-top: 30vh;
+}
+
+.cite.is-lit {
+  background: var(--gilt-lit);
+}
+
+.note-ref {
+  margin-left: 0.12em;
+  font-size: 0.72em;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 0;
+  vertical-align: super;
+  text-decoration: none;
+  color: var(--accent);
+}
+
+.note-ref::after {
+  content: attr(data-n);
+}
+
+/* offered beside a selection in the text */
+.cite-button {
+  position: absolute;
+  z-index: 10;
+  padding: 0.4rem 0.85rem 0.45rem;
+  border: 0;
+  border-radius: 2px;
+  background: var(--solid);
+  box-shadow: 0 4px 14px rgb(var(--shade) / 0.28), inset 0 0 0 1px var(--sheen);
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: var(--text-small);
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* journal ----------------------------------------------------------------- */
+
+.feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drafts {
+  margin-bottom: 3rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 3px;
+}
+
+.drafts .section-title {
+  margin: 0;
+}
+
+.drafts .hint {
+  margin-bottom: 1.4rem;
+}
+
+.entry + .entry {
+  margin-top: 2.6rem;
+  padding-top: 2.6rem;
+  background: linear-gradient(90deg, var(--rule), var(--rule) 40%, transparent) top left / 9rem 1px
+    no-repeat;
+}
+
+.entry .rubric {
+  margin-bottom: 0.45rem;
+}
+
+.entry .answers {
+  margin-top: -0.3rem;
+}
+
+.entry__title {
+  margin: 0 0 0.45rem;
+  font-size: clamp(1.8rem, 5vw, 2.2rem);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.entry__title a {
+  text-decoration: none;
+}
+
+.entry__excerpt {
+  margin: 0;
+}
+
+.entry__foot {
+  margin: 0.8rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.more {
+  white-space: nowrap;
+}
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  margin-top: 3.5rem;
+  font-size: var(--text-small);
+}
+
+.pager__where {
+  color: var(--ink-soft);
+}
+
+.pager > :last-child {
+  text-align: right;
+}
+
+/* one post ---------------------------------------------------------------- */
+
+.post__head {
+  margin-bottom: 1.9rem;
+}
+
+.post__title {
+  margin: 0.4rem 0 0;
+  font-size: clamp(2.3rem, 7vw, 3.2rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.post__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.25rem;
+  margin: 0.7rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.post .prose {
+  font-size: var(--text-reading);
+  line-height: 1.55;
+}
+
+/* a saffron rule with a bezant at its centre, closing a text or a form */
+.flourish,
+.gate__rule {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 0.5rem;
+  background:
+    radial-gradient(circle closest-side at 40% 36%, var(--glint) 0 30%, transparent 80%) center / 0.5rem 0.5rem
+      no-repeat,
+    radial-gradient(circle closest-side, var(--bezant) 0 84%, transparent 100%) center / 0.5rem 0.5rem no-repeat;
+}
+
+.flourish::before,
+.flourish::after,
+.gate__rule::before,
+.gate__rule::after {
+  content: "";
+  width: calc(50% - 0.8rem);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gilt));
+}
+
+.flourish::after,
+.gate__rule::after {
+  transform: scaleX(-1);
+}
+
+.flourish {
+  width: 15rem;
+  max-width: 100%;
+  margin: 3.5rem auto 3rem;
+}
+
+/* margin notes and the replies to them ------------------------------------ */
+
+.notes .section-title {
+  margin: 0 0 1.2rem;
+}
+
+.notes__list {
+  margin: 0 0 2.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.note {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0 0.5rem;
+  padding: 1.2rem 0 1.3rem;
+  border-top: 1px solid var(--rule);
+  scroll-margin-top: 1rem;
+}
+
+.note:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+/* the note or reply a link has just arrived at */
+.note:target,
+.reply:target {
+  background: linear-gradient(90deg, var(--gilt-wash), transparent 70%);
+}
+
+.note__n {
+  font-size: 1.5rem;
+  font-variant-numeric: lining-nums;
+  line-height: 1.25;
+  color: var(--accent);
+}
+
+.note__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.7rem;
+  margin: 0 0 0.2rem;
+}
+
+.note__who strong {
+  font-weight: 500;
+}
+
+.note__who time {
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.note__quote {
+  margin: 0.35rem 0 0.55rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--line);
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  overflow-wrap: break-word;
+}
+
+.note__quote a {
+  text-decoration: none;
+}
+
+.note__quote a:hover {
+  color: var(--ink);
+}
+
+.note__body {
+  overflow-wrap: break-word;
+}
+
+.note__body p {
+  margin: 0 0 0.5em;
+}
+
+.note__body p:last-child {
+  margin-bottom: 0;
+}
+
+.note__gone {
+  margin: 0;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* what can be done with a note: reply to it, remove it */
+.note__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1.25rem;
+  margin-top: 0.4rem;
+  font-size: var(--text-small);
+}
+
+/* anything folded away until asked for: the summary reads as a link */
+.fold summary {
+  display: inline-block;
+  list-style: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.fold summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold summary:hover {
+  color: var(--hover);
+  text-decoration-color: currentColor;
+}
+
+/* open, the box takes the line to itself and whatever follows drops below */
+.note__actions .fold[open] {
+  flex: 1 0 100%;
+}
+
+/* in italic, so that it needs no point before it and reads the same when it falls to a line of its own */
+.note__edited {
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.note__edited time {
+  font-style: normal;
+}
+
+/* what a note said before it was reworded */
+.was__list {
+  margin: 0.5rem 0 0.4rem;
+  padding: 0 0 0 0.9rem;
+  border-left: 1px solid var(--rule-strong);
+  list-style: none;
+  font-size: var(--text);
+  color: var(--ink-soft);
+}
+
+.was__list li + li {
+  margin-top: 0.7rem;
+}
+
+.was__when {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* under a quoted passage the text no longer has: where it can still be read */
+.note__was {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.reply-box .form {
+  margin: 0.6rem 0 0.4rem;
+}
+
+.reply-box textarea {
+  min-height: 5.5rem;
+}
+
+.reply-box .button {
+  margin-top: 0.7rem;
+}
+
+.replies {
+  margin: 1rem 0 0;
+  padding: 0 0 0 1.1rem;
+  border-left: 1px solid var(--rule-strong);
+  list-style: none;
+}
+
+.reply {
+  scroll-margin-top: 1rem;
+}
+
+.reply + .reply {
+  margin-top: 1rem;
+}
+
+.note-form__quote {
+  margin-top: 0.5rem;
+}
+
+/* lists of writing: commentaries, links, a member's work, tags ------------- */
+
+.related {
+  margin-bottom: 2.75rem;
+}
+
+.related .section-title {
+  margin: 0 0 0.9rem;
+}
+
+.related__more {
+  margin: 0.75rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.index {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.index li {
+  padding: 0.6rem 0 0.7rem;
+  border-top: 1px solid var(--rule);
+}
+
+.index li:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.index__title {
+  display: block;
+  font-size: 1.4rem;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.index--notes .index__title {
+  font-size: var(--text);
+  line-height: 1.4;
+}
+
+.index__quote,
+.index__meta {
+  display: block;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.index__quote {
+  font-style: italic;
+}
+
+/* the graph ---------------------------------------------------------------- */
+
+.graph__views {
+  margin: 0 0 0.8rem;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.graph__views strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.graph__focus a strong {
+  font-weight: 500;
+}
+
+.graph__all {
+  white-space: nowrap;
+}
+
+.graph__all::before {
+  content: "— ";
+}
+
+.graph-frame {
+  position: relative;
+}
+
+/* a sheet of lighter paper; on a narrow screen it keeps its size and scrolls */
+.graph {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-light);
+}
+
+.graph__sheet {
+  display: block;
+  width: 100%;
+  min-width: 46rem;
+  height: auto;
+  font-family: var(--serif);
+}
+
+/* with the script running, the sheet is a window that is zoomed and dragged instead */
+.graph.is-live {
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.graph.is-live.is-dragging {
+  cursor: grabbing;
+}
+
+.graph.is-live .graph__sheet {
+  min-width: 0;
+}
+
+.graph__tools {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--veil);
+}
+
+.graph__tools .tool {
+  min-width: 2.1rem;
+  color: var(--ink);
+}
+
+.graph__tools .tool:not([data-zoom="fit"]) {
+  font-size: 1.3rem;
+  line-height: 1.1;
+}
+
+/* what has been selected: what it is, and what can be done with it */
+.graph__card {
+  position: absolute;
+  left: 0.6rem;
+  bottom: 0.6rem;
+  max-width: min(27rem, calc(100% - 1.2rem));
+  padding: 0.7rem 1rem 0.8rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--field);
+  box-shadow: 0 10px 26px rgb(var(--shade) / 0.18);
+  font-size: var(--text-small);
+  line-height: 1.35;
+}
+
+.graph__card p {
+  margin: 0;
+}
+
+.graph__card-what {
+  font-size: var(--text);
+}
+
+.graph__card-what strong {
+  font-weight: 500;
+}
+
+.graph__card-more {
+  color: var(--ink-soft);
+}
+
+.graph__card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.15rem;
+  margin-top: 0.5rem !important;
+}
+
+.graph__how {
+  margin-top: 0.6rem;
+}
+
+kbd {
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--paper-light);
+  font-family: var(--mono);
+  font-size: 0.74em;
+}
+
+/* the lines are of the palette's base, chestnut and espresso; saffron is kept for a link
+   from one article to another, and terracotta for what passes between members */
+.edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1;
+  transition: opacity 160ms ease;
+}
+
+.edge--wrote {
+  stroke-opacity: 0.55;
+}
+
+.edge--commentary {
+  stroke: var(--edge-strong);
+  stroke-width: 1.7;
+}
+
+.edge--link {
+  stroke: var(--gilt);
+  stroke-width: 1.7;
+}
+
+.edge--note {
+  stroke-dasharray: 0.1 5;
+  stroke-linecap: round;
+  stroke-opacity: 0.7;
+  stroke-width: 1.7;
+}
+
+.edge--address {
+  stroke: var(--person);
+  stroke-dasharray: 6 4;
+  stroke-opacity: 0.7;
+}
+
+.arrow--ink path {
+  fill: var(--edge-strong);
+}
+
+.arrow--gold path {
+  fill: var(--gilt);
+}
+
+.node {
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.node circle,
+.node rect {
+  stroke: var(--paper-light);
+  stroke-width: 2;
+}
+
+.node--article circle {
+  fill: var(--node);
+}
+
+/* a commentary is a ring: an article with room left in it for the one it answers */
+.node--commentary circle {
+  fill: var(--paper-light);
+  stroke: var(--node);
+  stroke-width: 2.2;
+}
+
+.node--post circle {
+  fill: var(--node-small);
+}
+
+.node--person rect {
+  fill: var(--person);
+}
+
+/* The canon, which is what the main admin has written, is gilt: saffron where another
+   post is espresso, with a fine saffron ring standing a little way out from it. */
+.node--canon.node--article circle,
+.node--canon.node--post circle {
+  fill: var(--gilt);
+}
+
+.node--canon.node--commentary circle {
+  stroke: var(--gilt);
+  stroke-width: 2.8;
+}
+
+.node--canon circle.node__halo {
+  fill: none;
+  stroke: var(--gilt);
+  stroke-width: 1.2;
+}
+
+/* the main admin is a gilt diamond among the terracotta ones */
+.node--canon.node--person rect {
+  fill: var(--gilt);
+  stroke: var(--edge-strong);
+  stroke-width: 1.2;
+}
+
+.node--canon text {
+  font-weight: 600;
+}
+
+/* labels are haloed in paper so that a line passing behind does not strike them out */
+.node text {
+  fill: var(--ink);
+  font-size: 15px;
+  paint-order: stroke;
+  stroke: var(--paper-light);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.node--person text {
+  fill: var(--madder);
+  font-size: 14.5px;
+  font-style: italic;
+}
+
+.node:hover text,
+.node:focus-visible text {
+  text-decoration: underline;
+}
+
+.node:focus-visible {
+  outline: none;
+}
+
+.node:focus-visible circle,
+.node:focus-visible rect {
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+
+/* the node a view of the graph is centred on wears a ring of turquoise, as whatever is chosen does */
+.node.is-centre circle,
+.node.is-centre rect {
+  stroke: var(--focus);
+  stroke-width: 3.5;
+}
+
+.node.is-centre text {
+  font-weight: 600;
+}
+
+/* the centre of the canon keeps its saffron ring a little way out, and is ringed close in the darkest of the lines */
+.node--canon.is-centre circle:not(.node__halo),
+.node--canon.is-centre rect {
+  stroke: var(--edge-strong);
+  stroke-width: 2.5;
+}
+
+.node--canon.is-centre circle.node__halo,
+.node--canon:focus-visible circle.node__halo {
+  stroke-width: 1.8;
+}
+
+/* pointing at a node leaves it and what it touches, and dims the rest */
+.graph.is-focused .node:not(.is-on) {
+  opacity: 0.22;
+}
+
+.graph.is-focused .edge:not(.is-on) {
+  opacity: 0.1;
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.6rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.key li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.key svg {
+  flex: none;
+  overflow: visible;
+}
+
+.graph__tally {
+  margin-top: 0.6rem;
+}
+
+/* what is offered while a name or a title is being typed ------------------- */
+
+.suggest {
+  position: absolute;
+  z-index: 20;
+  min-width: 13rem;
+  max-width: min(26rem, calc(100vw - 1rem));
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--field);
+  box-shadow: 0 10px 26px rgb(var(--shade) / 0.2);
+  list-style: none;
+  font-size: var(--text-small);
+  line-height: 1.35;
+}
+
+.suggest li {
+  padding: 0.3rem 0.65rem 0.35rem;
+  border-radius: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.suggest li[aria-selected="true"] {
+  background: var(--gilt-wash);
+}
+
+.suggest small {
+  margin-left: 0.6em;
+  font-family: var(--mono);
+  font-size: 0.74em;
+  color: var(--ink-soft);
+}
+
+/* forms ------------------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.form label {
+  margin: 1.3rem 0 0.4rem;
+  color: var(--ink-soft);
+}
+
+.form > label:first-of-type,
+.form > .notice + label {
+  margin-top: 0;
+}
+
+.form .hint {
+  margin: -0.1rem 0 0.55rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input:not([type="hidden"], [type="file"]),
+textarea {
+  width: 100%;
+  padding: 0.55rem 0.85rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--field);
+  line-height: 1.4;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+input:not([type="hidden"], [type="file"]):hover,
+textarea:hover {
+  border-color: var(--rule-strong);
+}
+
+input:not([type="hidden"], [type="file"]):focus-visible,
+textarea:focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+/* a browser's autofill tint would break the paper */
+input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: inset 0 0 0 4rem var(--field);
+}
+
+input:-webkit-autofill:focus-visible {
+  box-shadow: inset 0 0 0 4rem var(--field), 0 0 0 3px var(--focus-wash);
+}
+
+textarea {
+  display: block;
+  min-height: 7.5rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* the one thing a form is for is filled in espresso, and warms to mahogany under the hand;
+   anything else is ruled in copper */
+.button {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 1.1rem;
+  /* the tracking leaves a gap after the last letter; the left padding balances it */
+  padding: 0.58rem 1.3rem 0.58rem calc(1.3rem + var(--tracking));
+  border: 1px solid var(--solid);
+  border-radius: 2px;
+  background: var(--solid);
+  box-shadow: inset 0 0 0 1px var(--sheen);
+  color: var(--paper);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease,
+    box-shadow 140ms ease, transform 80ms ease;
+}
+
+.button:hover {
+  border-color: var(--solid-lit);
+  background: var(--solid-lit);
+  box-shadow: inset 0 0 0 1px var(--sheen-lit);
+  color: var(--paper);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button--quiet {
+  border-color: var(--line);
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+}
+
+.button--quiet:hover {
+  border-color: var(--solid);
+  background: var(--solid);
+  box-shadow: none;
+  color: var(--paper);
+}
+
+/* a button that reads as a link, for small actions that must be posted */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: var(--hover);
+  text-decoration-color: currentColor;
+}
+
+.link--quiet {
+  color: var(--ink-soft);
+}
+
+.link--danger {
+  color: var(--madder);
+}
+
+/* something to be told: in oxblood when it went wrong, in malachite when it went well */
+.notice {
+  margin: 0 0 1.3rem;
+  padding: 0.7rem 1rem 0.75rem;
+  border-left: 3px solid var(--alarm);
+  border-radius: 0 2px 2px 0;
+  background: var(--alarm-wash);
+  line-height: 1.4;
+}
+
+.notice--ok {
+  border-left-color: var(--well);
+  background: var(--well-wash);
+}
+
+.notice > :first-child {
+  margin-top: 0;
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}
+
+.form--narrow {
+  max-width: 24rem;
+}
+
+/* writing */
+
+.compose textarea {
+  min-height: 26rem;
+}
+
+.compose #title {
+  font-size: 1.6rem;
+  line-height: 1.3;
+}
+
+.compose__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin: 0.9rem 0 0;
+}
+
+.compose__file .button {
+  flex: none;
+  margin: 0;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+  color: var(--ink);
+}
+
+.compose__file .button:hover {
+  color: var(--paper);
+}
+
+.compose__file .hint {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
+/* the file input itself is hidden, so its label shows the keyboard focus */
+.compose__file:focus-within .button {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.compose__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 2rem;
+}
+
+.compose__actions .button {
+  margin: 0;
+}
+
+.compose__cancel {
+  margin-left: 0.25rem;
+  font-size: var(--text-small);
+}
+
+.compose__delete {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* the editor: a row of tools over the text, and the preview beside or in place of it */
+
+.tool {
+  padding: 0.2rem 0.6rem 0.26rem;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: none;
+  font-size: var(--text-small);
+  line-height: 1.3;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.tool:hover:not(:disabled) {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+
+.tool[aria-pressed="true"] {
+  border-color: var(--rule-strong);
+  background: var(--field);
+  color: var(--ink);
+}
+
+.tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tool b,
+.tool i {
+  display: inline-block;
+  min-width: 0.9em;
+  font-size: 1.1em;
+  color: var(--ink);
+}
+
+.editor__bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0;
+  padding: 0.3rem 0.4rem 0.3rem 0;
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--paper-light);
+  /* cuts off the hairline of a group that begins a row: see below */
+  overflow: hidden;
+}
+
+/* A hairline before each group of tools parts it from the one before. It is drawn one
+   pixel to the left of the group, so that where a group begins a row the hairline
+   falls outside the bar and is not seen. */
+.editor__group {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -1px;
+  padding: 0 0.4rem;
+  background: linear-gradient(var(--rule-strong), var(--rule-strong)) left center / 1px 1.1rem no-repeat;
+}
+
+.editor__group.editor__views {
+  margin-left: auto;
+  padding-right: 0;
+  gap: 0.15rem;
+  background: none;
+}
+
+.editor__panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.editor__bar:not([hidden]) + .editor__panes textarea,
+.editor__bar:not([hidden]) + .editor__panes .editor__preview {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* the box grows with what is in it, so the page scrolls and not the box */
+.editor.is-live textarea {
+  overflow: hidden;
+  resize: none;
+}
+
+.editor.is-dropping textarea {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+.editor[data-view="preview"] textarea {
+  display: none;
+}
+
+.editor__preview {
+  min-height: 26rem;
+  padding: 1rem 1.5rem 2rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--paper-light);
+}
+
+.editor__preview .prose {
+  font-size: var(--text);
+}
+
+.editor__preview .post__title {
+  margin: 0 0 1.2rem;
+  font-size: 2.1rem;
+}
+
+.editor__label {
+  margin: 0 0 0.9rem;
+}
+
+.editor__preview.is-empty .prose::before {
+  content: "Nothing to show yet.";
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* side by side, the editor reaches out past the column on both sides, and each half
+   is about as wide as a page of the journal */
+.editor[data-view="both"] {
+  --wide: min(82rem, 100vw - 2 * var(--gutter) - 1rem);
+  width: var(--wide);
+  margin-inline: calc((100% - var(--wide)) / 2);
+}
+
+.editor[data-view="both"] .editor__panes {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.editor[data-view="both"] .editor__preview {
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.editor[data-view="both"] textarea {
+  border-bottom-right-radius: 0;
+}
+
+.editor__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.1rem 1.5rem;
+  margin: 0.45rem 0 0;
+  font-size: 1rem;
+  color: var(--ink-soft);
+}
+
+.editor__foot .is-bad {
+  color: var(--madder);
+}
+
+/* writing that was never saved, kept by the browser and offered back */
+.kept p {
+  margin: 0;
+}
+
+.kept__choice {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 0.3rem !important;
+}
+
+/* everything the text understands, folded away under the editor */
+.guide {
+  margin-top: 0.9rem;
+  font-size: var(--text-small);
+}
+
+.guide__marks {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.4rem 1.5rem;
+  margin: 0.8rem 0 0.4rem;
+  color: var(--ink-soft);
+}
+
+.guide__marks dd {
+  margin: 0;
+}
+
+.guide__marks code {
+  display: inline-block;
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+/* versions: a post's history, one version as it stood, and what changed between two */
+
+.versions {
+  margin: 0 0 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.version {
+  padding: 0.85rem 0 1rem;
+  border-top: 1px solid var(--rule);
+  scroll-margin-top: 1rem;
+}
+
+.version:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.version__head {
+  margin: 0;
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+
+.version__head .tag {
+  font-size: 0.68em;
+  vertical-align: 0.12em;
+  color: var(--ink-soft);
+}
+
+.version__n {
+  text-decoration: none;
+}
+
+.version__meta {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.version__meta a {
+  text-decoration-color: transparent;
+}
+
+.version__meta a:hover {
+  text-decoration-color: currentColor;
+}
+
+.version__summary {
+  margin: 0.35rem 0 0;
+  font-style: italic;
+}
+
+.version__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 1.25rem;
+  margin-top: 0.45rem;
+  font-size: var(--text-small);
+}
+
+select {
+  padding: 0.3rem 0.5rem 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--field);
+  font: inherit;
+  color: inherit;
+}
+
+.compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.7rem;
+  margin: 0 0 1.6rem;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.compare select {
+  color: var(--ink);
+}
+
+.compare .button {
+  margin: 0 0 0 0.3rem;
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
+}
+
+.version-bar {
+  margin-bottom: 2.25rem;
+}
+
+.version-bar p {
+  margin: 0;
+}
+
+.version-bar__summary {
+  font-style: italic;
+}
+
+.version-bar__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 1.25rem;
+  margin-top: 0.4rem !important;
+  font-size: var(--text-small);
+}
+
+/* what came in is washed green, what went out is struck through in red */
+ins {
+  border-radius: 2px;
+  background: var(--grown-wash);
+  box-shadow: 0 1px 0 var(--grown-line);
+  text-decoration: none;
+}
+
+del {
+  border-radius: 2px;
+  background: var(--alarm-wash);
+  color: var(--red-struck);
+  text-decoration: line-through;
+  text-decoration-color: var(--struck-line);
+}
+
+/* the two versions being compared, one to a line */
+.changes__sides {
+  margin: -1.1rem 0 1.4rem;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.changes__key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  margin: 0 0 1.4rem;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.changes__key ins,
+.changes__key del {
+  padding: 0 0.35em;
+}
+
+/* what went out and what came in stand a little apart */
+.diff del + ins,
+.diff__title del + ins {
+  margin-left: 0.18em;
+}
+
+.diff {
+  line-height: 1.55;
+  overflow-wrap: break-word;
+}
+
+.diff__title {
+  margin: 0 0 1.2rem;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+.diff__title .rubric {
+  display: block;
+}
+
+/* unchanged text is there to place the changes, and stands back */
+.diff__line {
+  margin: 0 0 0.6em;
+  color: var(--ink-soft);
+}
+
+.diff__change {
+  margin: 0.9em 0;
+  padding: 0.35em 0 0.4em 1rem;
+  border-left: 2px solid var(--line);
+  white-space: pre-wrap;
+}
+
+.diff__skip {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0.9em 0;
+  font-size: var(--text-small);
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.diff__skip::before,
+.diff__skip::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* members */
+
+.members {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.members th {
+  padding: 0 0.75rem 0.5rem 0;
+  border-bottom: 1px solid var(--frame);
+  text-align: left;
+  color: var(--ink-soft);
+}
+
+.members td {
+  padding: 0.7rem 0.75rem 0.75rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: baseline;
+}
+
+.members td strong {
+  font-weight: 500;
+}
+
+.members__you {
+  color: var(--ink-soft);
+}
+
+.members__username {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.members__actions {
+  padding-right: 0;
+  font-size: var(--text-small);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.members__actions form {
+  display: inline;
+}
+
+.members__actions > * + * {
+  margin-left: 1rem;
+}
+
+/* what a sub-admin has been given, under the word that says they are one */
+.members__can {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--accent);
+}
+
+/* choosing what a sub-admin may do: each permission by its name, with what it allows set under it */
+.form .grants .grant {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.15rem;
+  align-items: baseline;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.form .grants .grant:first-of-type {
+  border-top: 1px solid var(--rule);
+}
+
+.grant__name {
+  font-weight: 500;
+}
+
+.grant__says {
+  grid-column: 2;
+  font-size: var(--text-small);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.grants__note {
+  margin-top: 1.8rem;
+}
+
+/* the one that is given stands out by its rule, as what is chosen does elsewhere */
+.form .grants .grant:has(:checked) {
+  border-bottom-color: var(--focus);
+}
+
+.members .is-removed td:not(.members__actions) {
+  color: var(--ink-soft);
+}
+
+.form--inline {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 0 1rem;
+}
+
+.form--inline .notice {
+  grid-column: 1 / -1;
+}
+
+.form--inline label {
+  display: block;
+  margin-top: 0;
+}
+
+.form--inline .button {
+  align-self: end;
+  margin: 0;
+  /* as tall as the fields beside it */
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+.form--inline + .hint {
+  margin-top: 0.9rem;
+}
+
+.issued {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.issued dt {
+  color: var(--ink-soft);
+}
+
+.issued dd {
+  margin: 0;
+}
+
+.issued code {
+  padding: 0.15em 0.5em;
+  background: var(--paper-light);
+  font-size: 1rem;
+  user-select: all;
+}
+
+/* the gate: sign-in, set out as a bookplate -------------------------------- */
+
+.gate {
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 6vh, 3.5rem) var(--gutter);
+  background: radial-gradient(ellipse 46rem 34rem at 50% 46%, #f8f3e5, var(--paper) 72%);
+}
+
+/* a leaf of lighter paper inside a double rule, saffron without and camel within */
+.gate__leaf {
+  position: relative;
+  width: 100%;
+  max-width: 26.5rem;
+  /* the device sits astride the top rule, so the leaf is set down by half of it */
+  margin-top: 3rem;
+  padding: 4.6rem 3rem 2.2rem;
+  border: 1px solid var(--gilt);
+  border-radius: 2px;
+  background: var(--paper-light);
+  box-shadow:
+    0 1px 2px rgb(var(--shade) / 0.05),
+    0 26px 48px -30px rgb(var(--shade) / 0.45);
+}
+
+.gate__leaf::before,
+.gate__leaf::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.gate__leaf::before {
+  inset: 6px;
+  border: 1px solid var(--rule);
+}
+
+/* a bezant of saffron gold pinned on each corner of the inner rule */
+.gate__leaf::after {
+  --pin: radial-gradient(circle closest-side, var(--bezant) 0 78%, transparent 100%);
+  inset: 3.5px;
+  background:
+    var(--pin) left top / 6px 6px no-repeat,
+    var(--pin) right top / 6px 6px no-repeat,
+    var(--pin) left bottom / 6px 6px no-repeat,
+    var(--pin) right bottom / 6px 6px no-repeat;
+}
+
+/* the palm of knowledge, in a roundel that breaks the rule */
+.gate__device {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 6rem;
+  height: 6rem;
+  padding: 0.8rem 0 0.7rem;
+  border: 1px solid var(--gilt);
+  border-radius: 50%;
+  background: var(--paper-light);
+  box-shadow: inset 0 0 0 4px var(--paper-light), inset 0 0 0 5px var(--rule);
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+.gate__mark {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  font-size: 2.9rem;
+  line-height: 1;
+}
+
+.gate__mark a {
+  display: inline-flex;
+  align-items: baseline;
+  text-decoration: none;
+}
+
+.gate__mark a:hover {
+  color: inherit;
+}
+
+.gate__title {
+  margin: 0.7rem 0 1.9rem;
+  text-align: center;
+}
+
+.gate__form .button {
+  align-self: stretch;
+  margin-top: 1.7rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.16em;
+}
+
+.gate__rule {
+  width: 8.5rem;
+  margin: 2.1rem auto 0.9rem;
+}
+
+.gate__foot {
+  margin: 0;
+  font-size: 1.1rem;
+  font-style: italic;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.gate__back {
+  margin-top: 1.6rem;
+  text-decoration: none;
+  color: var(--ink-soft);
+}
+
+.gate__back::before {
+  content: "\2190\00a0\00a0";
+  letter-spacing: 0;
+}
+
+/* choosing: boxes to tick and one of several ------------------------------ */
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  accent-color: var(--focus);
+  vertical-align: -0.04em;
+}
+
+.options {
+  min-width: 0;
+  margin: 1.3rem 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.options legend {
+  margin: 0 0 0.4rem;
+  padding: 0;
+  font-size: var(--text-caps);
+  letter-spacing: var(--tracking);
+  font-variant-numeric: lining-nums;
+  text-transform: uppercase;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* what is chosen is said in ordinary words, not in a label's capitals */
+.form .options label,
+.form .clash__choice label {
+  display: block;
+  margin: 0;
+  padding: 0.12rem 0;
+  font-size: var(--text);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choices__name {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.options + .button {
+  margin-top: 0.9rem;
+}
+
+.actions {
+  margin: 0 0 0.5rem;
+}
+
+.actions .button {
+  margin-top: 0;
+}
+
+.tag--quiet {
+  border-color: var(--rule-strong);
+  color: var(--ink-soft);
+}
+
+/* projects ---------------------------------------------------------------- */
+
+.projects,
+.pages,
+.log,
+.people,
+.rooms {
+  margin: 0 0 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.project,
+.pages li,
+.log__item,
+.people li,
+.room {
+  padding: 0.7rem 0 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+.project:last-child,
+.pages li:last-child,
+.log__item:last-child,
+.people li:last-child,
+.room:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.project__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.project__title a,
+.pages__title,
+.room__name {
+  text-decoration: none;
+}
+
+.project__title .tag,
+.room .tag {
+  font-size: 0.95rem;
+  vertical-align: 0.12em;
+}
+
+.project__about {
+  margin: 0.2rem 0 0;
+}
+
+.project__facts,
+.pages__facts,
+.log__facts,
+.related__by {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+/* on a project's own page: who works on it, and what it is for */
+.project__people {
+  margin: 0.6rem 0 0;
+  color: var(--ink-soft);
+}
+
+.project__people a {
+  text-decoration-color: transparent;
+}
+
+.project__people a:hover {
+  text-decoration-color: currentColor;
+}
+
+.post__head .project__about {
+  margin-top: 0.9rem;
+}
+
+.pages__title {
+  display: block;
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+
+.pages__facts {
+  display: block;
+}
+
+.log__what {
+  margin: 0;
+}
+
+.log__what a {
+  text-decoration-color: transparent;
+}
+
+.log__what a:hover {
+  text-decoration-color: currentColor;
+}
+
+.related__by {
+  display: block;
+}
+
+.related--close {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+/* a name, and beside it what can be done about it */
+.people li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.9rem;
+}
+
+.people form {
+  margin-left: auto;
+  font-size: var(--text-small);
+}
+
+.people .tag {
+  margin-left: 0;
+  font-size: 0.95rem;
+}
+
+.people + .form {
+  margin-top: -0.6rem;
+}
+
+.removed {
+  margin: 2.5rem 0 0;
+  font-size: var(--text-small);
+}
+
+.removed .people {
+  margin: 0.7rem 0 0;
+  font-size: var(--text);
+}
+
+.compose__how {
+  margin-top: 1.1rem !important;
+}
+
+/* the choice between taking a suggestion and leaving it */
+.suggestion__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.suggestion__actions .button {
+  margin: 0;
+}
+
+/* two wordings of one passage, side by side, and the choice between them */
+.clash {
+  min-width: 0;
+  margin: 1.4rem 0;
+  padding: 0.6rem 1.1rem 1rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--paper-light);
+}
+
+.clash legend {
+  padding: 0 0.5rem;
+  font-size: var(--text-caps);
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.clash__sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.5rem;
+}
+
+.clash__side .rubric {
+  margin-bottom: 0.3rem;
+  color: var(--ink-soft);
+}
+
+.clash__text {
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--line);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* the first of two wordings is barred in copper, the other in teal */
+.clash__side + .clash__side .clash__text {
+  border-left-color: var(--other);
+}
+
+.clash__text--none {
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.clash__was {
+  margin-top: 0.8rem;
+  font-size: var(--text-small);
+}
+
+.clash__was .clash__text {
+  margin-top: 0.5rem;
+  border-left-color: var(--rule-strong);
+  color: var(--ink-soft);
+}
+
+.clash__choice {
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* chat --------------------------------------------------------------------- */
+
+.room__name {
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+
+.room--unread .room__name {
+  font-weight: 500;
+}
+
+.room .badge {
+  margin-left: 0.5em;
+  font-size: 0.85rem;
+}
+
+.room__last {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  overflow-wrap: break-word;
+}
+
+.room__when {
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.talk__head {
+  margin-bottom: 1.6rem;
+}
+
+.talk__head .page-title {
+  margin: 0.3rem 0 0;
+}
+
+.talk__people {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.talk__people a {
+  text-decoration-color: transparent;
+}
+
+.talk__people a:hover {
+  text-decoration-color: currentColor;
+}
+
+.talk__earlier {
+  margin: 0 0 1rem;
+  font-size: var(--text-small);
+  text-align: center;
+}
+
+.talk {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.say {
+  position: relative;
+  margin-top: 1rem;
+  scroll-margin: 1rem 0 9rem;
+}
+
+.say:first-child {
+  margin-top: 0;
+}
+
+.say:target {
+  background: linear-gradient(90deg, var(--gilt-wash), transparent 70%);
+}
+
+.say__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.7rem;
+  margin: 0;
+}
+
+.say__who strong {
+  font-weight: 500;
+}
+
+.say__who a {
+  text-decoration-color: transparent;
+}
+
+.say__who a:hover {
+  text-decoration-color: currentColor;
+}
+
+.say__when {
+  font-size: 1rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* said straight after the one above by the same member: the name is not repeated */
+.say--run {
+  margin-top: 0.3rem;
+}
+
+.say--run .say__who {
+  display: none;
+}
+
+/* removing is there when a message is pointed at, or reached with the keyboard;
+   it sits at the end of the message's first line, and the rest runs the full width */
+.say__remove {
+  float: right;
+  margin: 0.15rem 0 0 1rem;
+  font-size: var(--text-small);
+  line-height: 1.4;
+}
+
+.say::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+@media (hover: hover) {
+  .say__remove {
+    opacity: 0;
+  }
+
+  .say:hover .say__remove,
+  .say__remove:focus-within {
+    opacity: 1;
+  }
+}
+
+/* what the forum notes of its own accord, and where a message was taken away */
+.say--event,
+.say--gone {
+  font-size: var(--text-small);
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.say--event p,
+.say__gone {
+  margin: 0;
+}
+
+.say--event + .say--event {
+  margin-top: 0.3rem;
+}
+
+.say--event a {
+  text-decoration-color: transparent;
+}
+
+.say--event a:hover {
+  text-decoration-color: currentColor;
+}
+
+.say--event .say__when {
+  margin-left: 0.4em;
+  font-style: normal;
+}
+
+/* the box stays at the foot of the window while the conversation scrolls behind it */
+.talk__form {
+  position: sticky;
+  bottom: 0;
+  margin: 1.5rem calc(-1 * var(--gutter)) 0;
+  padding: 0.9rem var(--gutter) 1rem;
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.talk__form textarea {
+  min-height: 0;
+  resize: none;
+}
+
+.talk__send {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1rem;
+  margin-top: 0.6rem;
+}
+
+.talk__send .button {
+  margin: 0;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.talk__send .hint {
+  margin: 0;
+}
+
+.talk__status.is-bad {
+  color: var(--madder);
+}
+
+/* the guide ---------------------------------------------------------------- */
+
+.guide-contents {
+  margin: 0 0 2.5rem;
+  padding: 0.9rem 1.2rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--paper-light);
+}
+
+.guide-contents ol {
+  margin: 0;
+  padding-left: 1.4rem;
+  columns: 2;
+  column-gap: 2.5rem;
+}
+
+.guide-contents li::marker {
+  color: var(--accent);
+}
+
+.guide-contents a {
+  text-decoration-color: transparent;
+}
+
+.guide-contents a:hover {
+  text-decoration-color: currentColor;
+}
+
+.manual section {
+  scroll-margin-top: 1rem;
+}
+
+.manual section + section {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.manual h2 {
+  margin-top: 0;
+  font-size: 1.7rem;
+  font-weight: 400;
+}
+
+.manual h3 {
+  margin-top: 1.6em;
+  font-size: var(--text-caps);
+  font-weight: 400;
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.manual li {
+  margin: 0.45em 0;
+}
+
+.manual__menu {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 1.5rem;
+  margin: 0 0 1em;
+}
+
+.manual__menu dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.manual .guide__marks {
+  margin: 0 0 1.2em;
+  font-size: var(--text-small);
+}
+
+/* narrower pages ---------------------------------------------------------- */
+
+@media (max-width: 620px) {
+  :root {
+    --text: 1.1875rem;
+    --text-reading: 1.25rem;
+  }
+
+  .masthead {
+    padding-top: 0.75rem;
+  }
+
+  .masthead__mark {
+    font-size: 1.55rem;
+  }
+
+  .masthead__you {
+    gap: 0 1rem;
+    font-size: 1.05rem;
+  }
+
+  /* the places are set as a line of words, so that when they must take two
+     lines the lines come out even rather than leaving one word behind */
+  .masthead__nav {
+    display: block;
+    font-size: 1.1rem;
+    line-height: 1.75;
+    text-wrap: balance;
+  }
+
+  .masthead__nav a {
+    display: inline-block;
+    margin-right: 0.8rem;
+    line-height: 1.3;
+  }
+
+  .masthead__nav a:last-child {
+    margin-right: 0;
+  }
+
+  .gate__leaf {
+    padding: 4.4rem 1.6rem 2rem;
+  }
+
+  .gate__mark {
+    font-size: 2.6rem;
+  }
+
+  .drafts {
+    padding: 1rem 1.1rem 1.25rem;
+  }
+
+  /* a narrow measure wants a little less leading; and in an article, though not
+     in a note or a message, a long word may break rather than leave a gap */
+  .post .prose {
+    line-height: 1.5;
+  }
+
+  .post .prose p,
+  .post .prose li {
+    -webkit-hyphens: auto;
+    hyphens: auto;
+    hyphenate-limit-chars: 8 4 4;
+  }
+
+  /* where to go on either side, and beneath them where this is */
+  .pager {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 0.6rem;
+    margin-top: 2.75rem;
+  }
+
+  .pager__where {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  .form--inline {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+  }
+
+  .form--inline .button {
+    justify-self: start;
+  }
+
+  /* too narrow for a table: each member is set as a short entry, the name with
+     the role beside it and what can be done on a line beneath */
+  .members,
+  .members tbody,
+  .members td {
+    display: block;
+  }
+
+  .members thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .members tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0 1rem;
+    padding: 0.75rem 0 0.8rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .members tbody tr:first-child {
+    border-top: 1px solid var(--frame);
+  }
+
+  .members td {
+    padding: 0;
+    border: 0;
+  }
+
+  .members td:nth-child(2) {
+    font-size: var(--text-small);
+    color: var(--ink-soft);
+    text-align: right;
+  }
+
+  .members .members__actions {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    gap: 0 1.25rem;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .members__actions > *,
+  .members__actions > * + * {
+    margin: 0.3rem 0 0;
+  }
+
+  .guide__marks {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+
+  .guide__marks dd {
+    margin-bottom: 0.5rem;
+  }
+
+  .clash__sides,
+  .manual__menu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .manual__menu {
+    gap: 0;
+  }
+
+  .manual__menu dd {
+    margin-bottom: 0.5rem;
+  }
+
+  .guide-contents ol {
+    columns: 1;
+  }
+  /* the tools wrap one by one, without hairlines */
+  .editor__group:not(.editor__views) {
+    display: contents;
+  }
+
+  .editor__bar {
+    padding-left: 0.4rem;
+  }
+
+  .tool {
+    padding: 0.32rem 0.5rem 0.38rem;
+  }
+
+  .editor__preview {
+    padding: 0.9rem 0.9rem 1.5rem;
+  }
+}
+
+/* under a finger: the small links that stand by themselves are given more to
+   press than the height of their letters, without moving anything */
+@media (pointer: coarse) {
+  .masthead__nav a,
+  .masthead__you a,
+  .masthead__you .link,
+  .post__meta a,
+  .entry__foot a,
+  .related__more a,
+  .note__actions .link,
+  .fold > summary,
+  .version__actions a,
+  .version-bar__links a,
+  .members__actions .link,
+  .say__remove .link,
+  .graph__views a,
+  .talk__earlier a,
+  .pager a,
+  .compose__cancel,
+  .footer a {
+    margin-block: -0.45rem;
+    padding-block: 0.45rem;
+  }
+}
+
+/* no room for the text and its preview side by side */
+@media (max-width: 68rem) {
+  .editor__both {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .cite,
+  .button,
+  .tool,
+  .edge,
+  .node,
+  input,
+  textarea {
+    transition: none;
+  }
+}
+
+/* a way past the menu for anyone moving through the page by keyboard: it shows when it is reached */
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: -5rem;
+  z-index: 20;
+  padding: 0.45rem 0.9rem 0.5rem;
+  border: 1px solid var(--focus);
+  border-radius: 2px;
+  background: var(--field);
+  font-size: var(--text-small);
+  text-decoration: none;
+}
+
+.skip:focus {
+  top: 0.6rem;
+}
+
+/* searching --------------------------------------------------------------- */
+
+/* a page's title with something small set against it at the other end of the line */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-head .page-title {
+  margin-bottom: 0;
+}
+
+.search {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  font-size: var(--text-small);
+}
+
+/* on the journal the box is a quiet line to write on, not a field to fill in */
+.search input[type="search"] {
+  width: 11rem;
+  padding: 0.2rem 0.1rem 0.25rem;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.search input[type="search"]:focus-visible {
+  box-shadow: 0 1px 0 var(--focus);
+}
+
+.search input::placeholder {
+  font-style: italic;
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
+.search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+/* where what was found is listed, the box is the thing itself */
+.search--wide {
+  align-items: stretch;
+  margin: 0 0 1.25rem;
+  font-size: var(--text);
+}
+
+.search--wide input[type="search"] {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  padding: 0.55rem 0.85rem 0.6rem;
+  border-width: 1px;
+  border-radius: 2px;
+  background: var(--field);
+}
+
+.search--wide input[type="search"]:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+.search--wide .button {
+  align-self: stretch;
+  margin: 0;
+}
+
+.section-title__n {
+  margin-left: 0.4em;
+  color: var(--ink-soft);
+}
+
+.index--found .index__quote {
+  margin: 0.15rem 0 0.2rem;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+/* the words that were looked for, where they were found */
+.hit {
+  border-radius: 2px;
+  background: var(--gilt-wash);
+  box-shadow: 0 1px 0 var(--gilt-line);
+  color: var(--bright);
+}
+
+/* the account: how the pages look, and where one is signed in ------------- */
+
+.looks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  gap: 0.9rem;
+  margin: 0 0 0.8rem;
+}
+
+/* each way the pages can look is shown as a small leaf of itself, in its own colours whatever the page's */
+.look {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.95rem;
+  align-items: center;
+  padding: 0.7rem 0.9rem 0.75rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.look:hover {
+  border-color: var(--rule-strong);
+}
+
+.look[aria-pressed="true"] {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+.look__leaf {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 3.3rem;
+  height: 4.1rem;
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* the paper and the lettering are each page's own; the rule round the leaf is the one that page is ruled with */
+.look--night .look__leaf {
+  border-color: var(--chestnut);
+  background: #0b0a08;
+  color: #c9a84c;
+}
+
+.look--paper .look__leaf {
+  border-color: var(--warm-camel);
+  background: #f3ecdc;
+  color: #3f2e1f;
+}
+
+.look__name {
+  align-self: end;
+  line-height: 1.3;
+}
+
+.look__says {
+  align-self: start;
+  font-size: var(--text-small);
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+.index--sessions li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 1rem;
+  align-items: baseline;
+}
+
+.index--sessions .index__meta {
+  grid-column: 1;
+}
+
+.index__act {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: var(--text-small);
+}
+
+.index--sessions ~ .hint {
+  margin-top: 0.9rem;
+}
+
+.index--sessions + form .button {
+  margin-top: 1rem;
+}
+
+/* when a member last signed in, under what they are */
+.members__seen {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 620px) {
+  .search input[type="search"] {
+    width: 9rem;
+  }
+
+  .search--wide input[type="search"] {
+    width: auto;
+  }
+}
+
+/* night ------------------------------------------------------------------- */
+
+/*
+ * The colours of the night page are chosen at the head of this file. What
+ * follows is the little that has to be set differently with them: saffron
+ * where the paper page is filled with espresso, since that on black is
+ * nothing at all.
+ */
+
+/* titles are gilt and faintly lit, as if by the candle; lesser headings and names are the brighter of the two golds */
+:root[data-theme="night"] :is(.page-title, .post__title) {
+  color: var(--heading);
+  text-shadow: 0 0 3rem rgba(201, 168, 76, 0.15);
+}
+
+:root[data-theme="night"]
+  :is(
+    .entry__title,
+    .index__title,
+    .project__title,
+    .pages__title,
+    .masthead__mark,
+    .post .prose h2,
+    .post .prose h3,
+    .post .prose h4,
+    .manual h2,
+    .note__who strong,
+    .say__who,
+    .version__n,
+    .look__name,
+    strong
+  ) {
+  color: var(--bright);
+}
+
+/* the illuminated initial: its ornament recedes, so that the letter stands on it rather than in it */
+:root[data-theme="night"] .initial {
+  color: var(--bright);
+}
+
+:root[data-theme="night"] .initial::before {
+  color: #8d7331;
+}
+
+/* the one thing a form is for is ruled in saffron and lettered in gold, and fills with saffron under the hand */
+:root[data-theme="night"] .button {
+  border-color: var(--gilt);
+  background: transparent;
+  box-shadow: none;
+  color: var(--gold);
+}
+
+:root[data-theme="night"] .button:hover {
+  border-color: var(--gilt);
+  background: var(--gilt);
+  box-shadow: none;
+  color: var(--paper);
+}
+
+:root[data-theme="night"] .button--quiet {
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+:root[data-theme="night"] .button--quiet:hover {
+  border-color: var(--gilt);
+  background: transparent;
+  color: var(--gold);
+}
+
+:root[data-theme="night"] .cite-button {
+  background: var(--gilt);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.6);
+  color: var(--paper);
+}
+
+:root[data-theme="night"] .tag--canon:hover {
+  color: var(--paper);
+}
+
+/* a diagram is drawn in black on nothing: turned to its negative, and its colours turned back, it is drawn in light */
+:root[data-theme="night"] .figure--diagram img {
+  filter: invert(1) hue-rotate(180deg) sepia(0.25) brightness(0.92);
+}
+
+/* fields are sunk into the page rather than raised from it */
+:root[data-theme="night"] :is(input:not([type="hidden"], [type="file"], [type="checkbox"], [type="radio"]), textarea) {
+  border-color: var(--rule);
+}
+
+/* and the one being written in is ringed, which the rule above would otherwise keep from it */
+:root[data-theme="night"]
+  :is(input:not([type="hidden"], [type="file"], [type="checkbox"], [type="radio"]), textarea):focus-visible {
+  border-color: var(--focus);
+}
+
+:root[data-theme="night"] ::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.75;
+}
+
+/* a formula that could not be set is shown as typed, in the red of whichever page it is on */
+.katex-error {
+  color: var(--madder) !important;
+}

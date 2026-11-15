@@ -1,0 +1,8 @@
+# GitHub Pages makes www.gesserit.org out of this repository each time it is
+# pushed. Only the landing page belongs on that site: index.html, styles.css,
+# assets/ and CNAME. The forum's code is kept here to be run on its own server
+# (see README.md), not to be handed out by the website, so it is left out.
+exclude:
+  - README.md
+  - server
+  - tools

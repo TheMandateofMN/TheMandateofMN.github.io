@@ -1,0 +1,9 @@
+# Puts the forum on the web at https://forum.gesserit.org. Caddy fetches and
+# renews the certificate by itself once the name points at this machine.
+#
+# Add this to /etc/caddy/Caddyfile and run `sudo systemctl reload caddy`.
+# With it in front, set PUBLIC_URL and TRUST_PROXY in server/.env.
+
+forum.gesserit.org {
+	reverse_proxy 127.0.0.1:8787
+}
