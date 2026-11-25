@@ -30,13 +30,13 @@
    * choose: the paper a page is made of, the ink and the reds and golds its
    * words are lettered in, and the gold under the wordmark's initial.
    */
-  --paper: #f3ecdc;
-  --paper-light: #faf6ea;
-  --paper-deep: #ebe2cc;
-  --field: #fffdf6;
-  --veil: rgba(250, 246, 234, 0.94);
-  --ink: #3f2e1f;
-  --ink-soft: #6a5f50;
+  --paper: #e4d9c4;
+  --paper-light: #ece3d1;
+  --paper-deep: #d9cdb5;
+  --field: #f3ecdd;
+  --veil: rgba(236, 227, 209, 0.94);
+  --ink: #3f2e28;
+  --ink-soft: #6b5a50;
   --gold: #b8922a;
   --madder: #8b3048;
   --red-struck: #7c2e42;
@@ -62,6 +62,20 @@
   --solid-lit: var(--mahogany-wine);
   --node: var(--espresso);
   --node-small: var(--chestnut);
+  /*
+   * The two layers of the corpus. The antecedents are lettered in the browns
+   * of bark, all of the palette's base and core or mixed from them, and glow
+   * in saffron. The succession is lettered in the green of leaves, which the
+   * palette has only as a jewel: a dark leaf and a lighter one are chosen here.
+   */
+  --bark-0: var(--chestnut);
+  --bark-1: var(--copper-rust);
+  --bark-2: var(--mahogany-wine);
+  --bark-3: color-mix(in srgb, var(--warm-camel) 55%, var(--espresso));
+  --bark-4: color-mix(in srgb, var(--terracotta) 78%, var(--espresso));
+  --bark-glow: color-mix(in srgb, var(--saffron-gold) 85%, transparent);
+  --leaf: #2a5a2e;
+  --leaf-light: #5c9440;
   --edge: var(--chestnut);
   --edge-strong: var(--espresso);
   /* the colour shadows are cast in, espresso as three numbers for rgb() */
@@ -119,7 +133,7 @@
 }
 
 /*
- * Night: the page a member reads once signed in, unless they choose paper.
+ * Night: the page for a member who chooses it over paper.
  * Black, with the text in pale gold and what was inked or rubricated in
  * gold: the same page by candlelight. Only the colours are chosen again
  * here; what must change with them besides is at the foot of this file.
@@ -152,6 +166,15 @@
   /* oat cream and camel, so that the canon's saffron is not lost among pale gold */
   --node: var(--oat-cream);
   --node-small: var(--warm-camel);
+  /* bark by candlelight is its paler browns, and leaves are lit from behind */
+  --bark-0: var(--warm-camel);
+  --bark-1: var(--terracotta);
+  --bark-2: var(--rose-copper);
+  --bark-3: color-mix(in srgb, var(--warm-camel) 60%, var(--oat-cream));
+  --bark-4: color-mix(in srgb, var(--copper-rust) 55%, var(--saffron-amber));
+  --bark-glow: color-mix(in srgb, var(--saffron-amber) 90%, transparent);
+  --leaf: #6fae62;
+  --leaf-light: #a9e07e;
   --edge: var(--warm-camel);
   --edge-strong: var(--oat-cream);
   --shade: 0 0 0;
@@ -387,6 +410,16 @@ strong {
   color: var(--madder);
 }
 
+/* the letter after a title that says whose a piece is, where no author is named */
+.hand {
+  margin-left: 0.08em;
+  font-size: 0.58em;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 0;
+  vertical-align: super;
+}
+
 /* what is chosen, or is where one is, in the turquoise that ticks it */
 .tag--mark {
   border-color: var(--focus);
@@ -468,14 +501,13 @@ code {
   margin-right: -0.015em;
 }
 
-/* the places to go, and then whose session this is: on a wide page they share
-   the mark's line, and on a narrower one the places take a line of their own */
+/* the three places to go, and then two small signs: messages, and the way out */
 .masthead__nav,
 .masthead__you {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.1rem 1.5rem;
+  align-items: center;
+  gap: 0.1rem 1.6rem;
   font-size: 1.15rem;
 }
 
@@ -483,34 +515,86 @@ code {
   margin-left: auto;
 }
 
-.masthead__nav a,
-.masthead__you a,
-.masthead__you .link {
+.masthead__you {
+  gap: 0.15rem;
+  margin-right: -0.45rem;
+}
+
+.masthead__nav a {
   text-decoration-color: transparent;
 }
 
-.masthead__nav a:hover,
-.masthead__you a:hover,
-.masthead__you .link:hover {
+.masthead__nav a:hover {
   text-decoration-color: currentColor;
 }
 
-/* where you are */
-.masthead__nav a[aria-current="page"],
-.masthead__you a[aria-current="page"] {
+/* where you are: the place itself, or a page that stands under it */
+.masthead__nav a[aria-current] {
   text-decoration-color: var(--line);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.3em;
 }
 
 .masthead__you form {
-  display: inline;
+  display: flex;
 }
 
-@media (max-width: 52rem) {
+.masthead__icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.masthead__icon:hover {
+  background: var(--paper-deep);
+  color: var(--hover);
+}
+
+.masthead__glyph {
+  width: 1.45rem;
+  height: 1.45rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* how many messages are unread, worn at the corner of the sign */
+.masthead__icon .badge {
+  position: absolute;
+  top: 0.05rem;
+  right: -0.1rem;
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+/* messages are not a place to go to: they open beside whatever page this is */
+.masthead__messages[aria-expanded="true"],
+.masthead__messages[aria-current="page"] {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+
+/* on a narrow page the places take a line of their own beneath the mark */
+@media (max-width: 34rem) {
   .masthead {
-    align-items: baseline;
-    row-gap: 0.45rem;
+    row-gap: 0.3rem;
   }
 
   .masthead__you {
@@ -525,41 +609,139 @@ code {
   }
 }
 
-/* an admin has more places to go, and runs out of line sooner */
-@media (max-width: 66rem) {
-  .masthead--long {
-    align-items: baseline;
-    row-gap: 0.45rem;
-  }
+/* the page ---------------------------------------------------------------- */
 
-  .masthead--long .masthead__you {
-    order: 2;
-    margin-left: auto;
-  }
+/*
+ * A page stands between two vines, the ones the landing page is bordered
+ * with, where the window has room for them beside what is on it; where it
+ * has not, the page is all there is. `--column` is how wide what is on the
+ * page may be, which is what the vines stand clear of.
+ */
+.leaf {
+  /* the two pictures a vine is made of, which the page names: the stem that repeats, and the flourish at each end */
+  --vine: none;
+  --vine-tip: none;
+  --column: calc(var(--measure) + 2 * var(--gutter));
+  --vine-width: 104px;
+  /* the tile is 140 by 560 and the flourish 140 by 150, both drawn to the vine's width; the stem
+     repeats every half tile, which is what its height is kept to, so that it is never cut mid-leaf */
+  --half-tile: calc(var(--vine-width) * 2);
+  --flourish: calc(var(--vine-width) * 15 / 14);
+  --vine-gap: clamp(0.5rem, 2.5vw, 3rem);
+  /* drawn in toward what is on the page, and never off the edge of the window */
+  --vine-inset: max(0.4rem, calc(50% - var(--column) / 2 - var(--vine-width) - var(--vine-gap)));
+  position: relative;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
 
-  .masthead--long .masthead__nav {
-    order: 3;
-    flex: 1 0 100%;
-    margin-left: 0;
+.leaf--wide {
+  --column: calc(48rem + 2 * var(--gutter));
+}
+
+.leaf--full {
+  --column: calc(70rem + 2 * var(--gutter));
+}
+
+.leaf--desk {
+  --column: calc(8.5in + 2 * var(--gutter));
+}
+
+/* the corpus is given the whole window, and the vines stand at its edges */
+.leaf--sheet {
+  --vine-inset: clamp(0.4rem, 1.2vw, 1.5rem);
+}
+
+.vines {
+  display: none;
+}
+
+.vines__side {
+  position: absolute;
+  top: 1.25rem;
+  bottom: 0.5rem;
+  left: var(--vine-inset);
+  width: var(--vine-width);
+  display: flex;
+  flex-direction: column;
+  /* the stem takes whole half tiles, and what is left over is shared above and below it */
+  justify-content: center;
+  pointer-events: none;
+}
+
+.vines__side--right {
+  left: auto;
+  right: var(--vine-inset);
+  transform: scaleX(-1);
+}
+
+.vines__stem {
+  flex: 0 0 auto;
+  height: calc(100% - 2 * var(--flourish));
+  /* a repeating picture is cut wherever its element ends: rounded down to whole half tiles, the cut
+     falls where the stem meets itself, and is not seen */
+  height: max(var(--half-tile), round(down, calc(100% - 2 * var(--flourish)), var(--half-tile)));
+  background: var(--vine) center top / var(--vine-width) auto repeat-y;
+}
+
+.vines__tip {
+  flex: 0 0 auto;
+  height: var(--flourish);
+  background: var(--vine-tip) center bottom / var(--vine-width) auto no-repeat;
+}
+
+/* turned rather than flipped, which would reverse the stem's lean and kink it where the two meet */
+.vines__tip--foot {
+  transform: rotate(180deg);
+}
+
+/* the vines are there once the window is wide enough for them beside the page: each kind of page by its own width */
+@media (min-width: 58rem) {
+  .leaf:not(.leaf--wide, .leaf--full, .leaf--desk, .leaf--sheet) > .vines {
+    display: block;
   }
 }
 
-/* the page ---------------------------------------------------------------- */
+@media (min-width: 68rem) {
+  .leaf--wide > .vines,
+  .leaf--sheet > .vines {
+    display: block;
+  }
+}
+
+@media (min-width: 72rem) {
+  .leaf--desk > .vines {
+    display: block;
+  }
+}
+
+@media (min-width: 90rem) {
+  .leaf--full > .vines {
+    display: block;
+  }
+}
 
 .column {
+  position: relative;
   flex: 1 0 auto;
   width: 100%;
-  max-width: calc(var(--measure) + 2 * var(--gutter));
+  max-width: var(--column);
   margin: 0 auto;
   padding: clamp(2rem, 6vw, 3.5rem) var(--gutter) 3.5rem;
 }
 
-.column--wide {
-  max-width: calc(48rem + 2 * var(--gutter));
+/* the corpus is a drawing, and is given as much of the window as there is */
+.column--sheet {
+  max-width: calc(100rem + 2 * var(--gutter));
 }
 
-.column--full {
-  max-width: calc(70rem + 2 * var(--gutter));
+/* with the vines at the window's edges, the drawing keeps clear of them on both sides alike */
+@media (min-width: 68rem) {
+  .column--sheet {
+    max-width: none;
+    padding-inline: calc(var(--vine-inset) + var(--vine-width) + 1.5rem);
+  }
 }
 
 /* a page's opening words, kept to the reading measure even on a wide page */
@@ -574,6 +756,16 @@ code {
   font-size: clamp(2.1rem, 6vw, 2.7rem);
   font-weight: 400;
   line-height: 1.15;
+}
+
+/* over a form the title is a size smaller: it says what the form is, and the form is the page */
+.page-title--form {
+  margin-bottom: 2rem;
+  font-size: clamp(1.8rem, 5vw, 2.2rem);
+}
+
+.page-title--preferences {
+  margin-bottom: 2.6rem;
 }
 
 .section-title {
@@ -1263,7 +1455,7 @@ code {
   font-style: italic;
 }
 
-/* the graph ---------------------------------------------------------------- */
+/* the corpus --------------------------------------------------------------- */
 
 .graph__views {
   margin: 0 0 0.8rem;
@@ -1288,16 +1480,21 @@ code {
   content: "— ";
 }
 
+/* the layers at one end of the line, and at the other what can be marked out among them */
+.graph__views--split {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.2rem 1.5rem;
+}
+
 .graph-frame {
   position: relative;
 }
 
-/* a sheet of lighter paper; on a narrow screen it keeps its size and scrolls */
+/* drawn on the page itself, with nothing round it; on a narrow screen it keeps its size and scrolls */
 .graph {
   overflow-x: auto;
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  background: var(--paper-light);
 }
 
 .graph__sheet {
@@ -1306,6 +1503,7 @@ code {
   min-width: 46rem;
   height: auto;
   font-family: var(--serif);
+  font-size: 15px;
 }
 
 /* with the script running, the sheet is a window that is zoomed and dragged instead */
@@ -1360,10 +1558,47 @@ code {
   box-shadow: 0 10px 26px rgb(var(--shade) / 0.18);
   font-size: var(--text-small);
   line-height: 1.35;
+  /* what opens in it can be long: it is kept within the drawing, and read by scrolling */
+  max-height: calc(100% - 1.2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .graph__card p {
   margin: 0;
+}
+
+/* what is said of the piece, which opens when its title is chosen */
+.graph__card-note {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.graph__card-label {
+  margin-bottom: 0.2rem !important;
+  font-size: var(--text-caps);
+  letter-spacing: var(--tracking);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.graph__card .annotation__text {
+  font-size: var(--text-small);
+  line-height: 1.4;
+}
+
+.graph__card .annotation__text p + p {
+  margin-top: 0.45rem;
+}
+
+/* its title, and on the same line at the other end the ways on from it */
+.graph__card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.1rem 1.5rem;
 }
 
 .graph__card-what {
@@ -1371,6 +1606,11 @@ code {
 }
 
 .graph__card-what strong {
+  font-weight: 500;
+}
+
+.graph__card-what cite {
+  font-style: italic;
   font-weight: 500;
 }
 
@@ -1382,24 +1622,46 @@ code {
   display: flex;
   flex-wrap: wrap;
   gap: 0.2rem 1.15rem;
-  margin-top: 0.5rem !important;
 }
 
-.graph__how {
-  margin-top: 0.6rem;
+/* arranging the corpus: what to do, and the saving of it, in a line over the drawing */
+.graph__arrange {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.4rem;
+  margin: 0 0 1rem;
 }
 
-kbd {
-  padding: 0.05em 0.4em;
-  border: 1px solid var(--rule-strong);
-  border-radius: 3px;
-  background: var(--paper-light);
-  font-family: var(--mono);
-  font-size: 0.74em;
+.graph__arrange .hint {
+  flex: 1 1 18rem;
+  margin: 0;
 }
 
-/* the lines are of the palette's base, chestnut and espresso; saffron is kept for a link
-   from one article to another, and terracotta for what passes between members */
+.graph__arrange .button {
+  margin: 0;
+}
+
+.graph.is-arranging .node {
+  cursor: move;
+}
+
+.graph.is-arranging .node[data-main] {
+  cursor: default;
+}
+
+/* a title that is being carried, or that has the keyboard while the corpus is arranged, shows what will move */
+.graph.is-arranging .node.is-carried .node__plate,
+.graph.is-arranging .node:hover:not([data-main]) .node__plate {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* The lines are of the palette's base, chestnut and espresso; saffron is kept for a link
+   from one article to another, and terracotta for what passes between members. A line
+   from a work in to the centre is the faintest. The whole corpus is drawn without any:
+   they are there where only what surrounds one piece is shown. */
 .edge {
   fill: none;
   stroke: var(--edge);
@@ -1413,12 +1675,12 @@ kbd {
 
 .edge--commentary {
   stroke: var(--edge-strong);
-  stroke-width: 1.7;
+  stroke-width: 1.5;
 }
 
 .edge--link {
   stroke: var(--gilt);
-  stroke-width: 1.7;
+  stroke-width: 1.5;
 }
 
 .edge--note {
@@ -1434,88 +1696,148 @@ kbd {
   stroke-opacity: 0.7;
 }
 
-.arrow--ink path {
-  fill: var(--edge-strong);
+.edge--descent {
+  stroke-opacity: 0.5;
+  stroke-width: 0.9;
 }
 
-.arrow--gold path {
-  fill: var(--gilt);
-}
-
+/* A piece is drawn as its title, and the lines to it end at the title. Behind the
+   title is a plate of the page's own paper, which is what is pointed at and pressed. */
+/* A piece is drawn as its title, and the lines to it end at the title. Behind the
+   title is a plate of the sheet's own paper, which is what is pointed at and pressed. */
 .node {
   text-decoration: none;
   cursor: pointer;
   transition: opacity 160ms ease;
 }
 
-.node circle,
-.node rect {
-  stroke: var(--paper-light);
-  stroke-width: 2;
+/* (a graft's title is filled by the page itself, with a run from one colour into another, which a fill named here would cover) */
+.node:where(:not(.node--graft)) text {
+  fill: var(--ink);
 }
 
-.node--article circle {
-  fill: var(--node);
+.node__plate {
+  fill: var(--paper);
+  stroke: none;
 }
 
-/* a commentary is a ring: an article with room left in it for the one it answers */
-.node--commentary circle {
-  fill: var(--paper-light);
-  stroke: var(--node);
-  stroke-width: 2.2;
+/* in the whole corpus there is nothing for a plate to cover, and it is not seen at all */
+.graph--whole .node__plate {
+  fill: transparent;
 }
 
-.node--post circle {
-  fill: var(--node-small);
+/*
+ * The two layers are told apart by colour. The succession, which is what is
+ * written here, is lettered in the green of leaves: dark for nearly all of
+ * it, lighter for the few that are set apart. The antecedents, the works it
+ * descends from, are lettered in the browns of bark, no two neighbours the
+ * same, each with a glow behind it. A piece grafted onto an earlier author's
+ * work runs from the one into the other (the page gives it that fill itself).
+ */
+.node--leaf:not(.node--graft) text {
+  fill: var(--leaf);
 }
 
-.node--person rect {
-  fill: var(--person);
+.node--light:not(.node--graft) text {
+  fill: var(--leaf-light);
 }
 
-/* The canon, which is what the main admin has written, is gilt: saffron where another
-   post is espresso, with a fine saffron ring standing a little way out from it. */
-.node--canon.node--article circle,
-.node--canon.node--post circle {
+.graft__from {
+  stop-color: var(--bark-1);
+}
+
+.graft__to {
+  stop-color: var(--leaf);
+}
+
+.node--article text,
+.node--graft text {
+  font-weight: 500;
+}
+
+/* a short post is set in its own words */
+.node--post text {
+  font-style: italic;
+}
+
+.node--bark-0 {
+  --bark: var(--bark-0);
+}
+
+.node--bark-1 {
+  --bark: var(--bark-1);
+}
+
+.node--bark-2 {
+  --bark: var(--bark-2);
+}
+
+.node--bark-3 {
+  --bark: var(--bark-3);
+}
+
+.node--bark-4 {
+  --bark: var(--bark-4);
+}
+
+.node--bark text {
+  fill: var(--bark);
+  font-weight: 500;
+}
+
+.glow__light {
+  flood-color: var(--bark-glow);
+}
+
+.node__dot {
+  fill: var(--bark, var(--node-small));
+  stroke: var(--paper);
+  stroke-width: 1.5;
+}
+
+/* how much of a work is meant, said under its title as an aside */
+.node__extent {
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* the sign that something opens under a title */
+.node__fold {
+  fill: var(--ink-soft);
+  font-weight: 400;
+}
+
+/* the mark of a work that both shows and tells, there only when it is asked for */
+.node__star {
   fill: var(--gilt);
-}
-
-.node--canon.node--commentary circle {
-  stroke: var(--gilt);
-  stroke-width: 2.8;
-}
-
-.node--canon circle.node__halo {
-  fill: none;
-  stroke: var(--gilt);
-  stroke-width: 1.2;
-}
-
-/* the main admin is a gilt diamond among the terracotta ones */
-.node--canon.node--person rect {
-  fill: var(--gilt);
-  stroke: var(--edge-strong);
-  stroke-width: 1.2;
-}
-
-.node--canon text {
   font-weight: 600;
 }
 
-/* labels are haloed in paper so that a line passing behind does not strike them out */
-.node text {
-  fill: var(--ink);
-  font-size: 15px;
-  paint-order: stroke;
-  stroke: var(--paper-light);
-  stroke-width: 4px;
-  stroke-linejoin: round;
+/* with those marked out, the rest of the works fall back */
+.graph--marked .node--work:not(.is-marked) {
+  opacity: 0.38;
+}
+
+/* the essay everything is drawn about */
+.node[data-main] text {
+  font-weight: 600;
+}
+
+/* a member is a small diamond with the name beneath */
+.node__mark {
+  fill: var(--person);
+  stroke: var(--paper);
+  stroke-width: 1.5;
 }
 
 .node--person text {
   fill: var(--madder);
   font-size: 14.5px;
   font-style: italic;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .node:hover text,
@@ -1527,68 +1849,40 @@ kbd {
   outline: none;
 }
 
-.node:focus-visible circle,
-.node:focus-visible rect {
+.node:focus-visible .node__plate,
+.node:focus-visible .node__mark,
+.node:focus-visible .node__dot {
   stroke: var(--focus);
-  stroke-width: 3;
+  stroke-width: 2.5;
 }
 
-/* the node a view of the graph is centred on wears a ring of turquoise, as whatever is chosen does */
-.node.is-centre circle,
-.node.is-centre rect {
+/* the node a view of the corpus is centred on is framed in turquoise, as whatever is chosen is */
+.node.is-centre .node__plate,
+.node.is-centre .node__mark {
   stroke: var(--focus);
-  stroke-width: 3.5;
+  stroke-width: 2.5;
 }
 
 .node.is-centre text {
   font-weight: 600;
 }
 
-/* the centre of the canon keeps its saffron ring a little way out, and is ringed close in the darkest of the lines */
-.node--canon.is-centre circle:not(.node__halo),
-.node--canon.is-centre rect {
-  stroke: var(--edge-strong);
-  stroke-width: 2.5;
-}
-
-.node--canon.is-centre circle.node__halo,
-.node--canon:focus-visible circle.node__halo {
-  stroke-width: 1.8;
+/* the title that has been chosen, where there are no lines to pick it out by */
+.graph--whole .node.is-on text {
+  text-decoration: underline;
 }
 
 /* pointing at a node leaves it and what it touches, and dims the rest */
 .graph.is-focused .node:not(.is-on) {
-  opacity: 0.22;
+  opacity: 0.25;
 }
 
 .graph.is-focused .edge:not(.is-on) {
   opacity: 0.1;
 }
 
-.key {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem 1.6rem;
-  margin: 0.9rem 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-small);
-  color: var(--ink-soft);
-}
-
-.key li {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.key svg {
-  flex: none;
-  overflow: visible;
-}
-
-.graph__tally {
-  margin-top: 0.6rem;
+.graph.is-focused .edge.is-on {
+  stroke-opacity: 1;
 }
 
 /* what is offered while a name or a title is being typed ------------------- */
@@ -1800,48 +2094,84 @@ textarea {
   min-height: 26rem;
 }
 
-.compose #title {
-  font-size: 1.6rem;
-  line-height: 1.3;
+.compose > label {
+  margin-top: 1.9rem;
 }
 
-.compose__file {
+.compose > label:first-of-type,
+.compose > .notice + label {
+  margin-top: 0;
+}
+
+/* the title, and beside it the short box for the letter that is set after it */
+.compose__titles {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 1rem;
-  margin: 0.9rem 0 0;
+  align-items: end;
+  gap: 0 1.4rem;
 }
 
-.compose__file .button {
-  flex: none;
-  margin: 0;
-  padding-top: 0.4rem;
-  padding-bottom: 0.4rem;
-  color: var(--ink);
+.compose__titles > div {
+  display: flex;
+  flex-direction: column;
 }
 
-.compose__file .button:hover {
-  color: var(--paper);
+.compose__titles label {
+  margin-top: 0;
 }
 
-.compose__file .hint {
-  flex: 1 1 14rem;
-  margin: 0;
+/* the label under the titles is the first that is the form's own, and stands clear of them all the same */
+.compose > .compose__titles + label {
+  margin-top: 1.9rem;
 }
 
-/* the file input itself is hidden, so its label shows the keyboard focus */
-.compose__file:focus-within .button {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+.compose__title {
+  flex: 0 1 26rem;
+  min-width: min(100%, 14rem);
+}
+
+.compose__hand {
+  flex: 0 0 6.5rem;
+}
+
+/*
+ * A piece is written as it would be on a sheet of paper: the sheet is eight
+ * and a half inches across with an inch of margin, and the title and the
+ * words are set at eleven points, so that a line holds what a line of the
+ * manuscript does.
+ */
+.compose--piece #title,
+.compose--piece #hand {
+  font-size: 11pt;
+}
+
+.compose--piece .editor__page,
+.compose--piece .editor[data-view="write"] textarea {
+  min-height: 11in;
+  padding: 1in clamp(1.5rem, 9vw, 1in);
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+.compose--piece .editor[data-view="both"] textarea {
+  font-size: 11pt;
+}
+
+/* an antecedent is a few short fields and what is said of it */
+.compose--work {
+  max-width: 40rem;
+}
+
+.compose--work textarea {
+  min-height: 12rem;
 }
 
 .compose__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem 1rem;
-  margin-top: 2rem;
+  gap: 0.9rem 1.75rem;
+  margin-top: 3.25rem;
 }
 
 .compose__actions .button {
@@ -1849,7 +2179,6 @@ textarea {
 }
 
 .compose__cancel {
-  margin-left: 0.25rem;
   font-size: var(--text-small);
 }
 
@@ -1859,15 +2188,21 @@ textarea {
   border-top: 1px solid var(--rule);
 }
 
-/* the editor: a row of tools over the text, and the preview beside or in place of it */
+/* the editor: a row of tools over a page that is written on as it will look; the plain
+   text and the preview can be had in its place, or side by side */
 
 .tool {
-  padding: 0.2rem 0.6rem 0.26rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.1rem;
+  padding: 0.22rem 0.65rem 0.28rem;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 3px;
   background: none;
   font-size: var(--text-small);
   line-height: 1.3;
+  white-space: nowrap;
   color: var(--ink-soft);
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
@@ -1878,7 +2213,8 @@ textarea {
   color: var(--ink);
 }
 
-.tool[aria-pressed="true"] {
+.tool[aria-pressed="true"],
+.tool[aria-expanded="true"] {
   border-color: var(--rule-strong);
   background: var(--field);
   color: var(--ink);
@@ -1897,6 +2233,63 @@ textarea {
   color: var(--ink);
 }
 
+/* a tool that is a small picture of what it does */
+.tool--pictured {
+  padding-inline: 0.45rem;
+}
+
+.tool__icon {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool__dot,
+.tool__figure {
+  fill: currentColor;
+  stroke: none;
+}
+
+.tool__figure {
+  font-family: var(--serif);
+  font-size: 6.5px;
+  font-weight: 600;
+  font-variant-numeric: lining-nums;
+}
+
+.tool__bar {
+  stroke: var(--line);
+  stroke-width: 2.5;
+}
+
+/* a tool that opens a list of choices says so with a small arrowhead */
+.tool--menu {
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.tool--menu::after {
+  content: "";
+  flex: none;
+  width: 0.38rem;
+  height: 0.38rem;
+  margin-top: -0.2rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.tool--menu[data-opens="styles"] {
+  min-width: 9.6rem;
+}
+
+.editor {
+  margin-top: 0.2rem;
+}
+
 .editor__bar {
   position: sticky;
   top: 0;
@@ -1904,14 +2297,14 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.15rem 0;
-  padding: 0.3rem 0.4rem 0.3rem 0;
+  gap: 0.3rem 0;
+  padding: 0.4rem 0.5rem 0.4rem 0;
   border: 1px solid var(--rule);
   border-bottom: 0;
-  border-radius: 2px 2px 0 0;
+  border-radius: 3px 3px 0 0;
   background: var(--paper-light);
-  /* cuts off the hairline of a group that begins a row: see below */
-  overflow: hidden;
+  /* cuts off the hairline of a group that begins a row (see below), but not the lists that open beneath */
+  overflow-x: clip;
 }
 
 /* A hairline before each group of tools parts it from the one before. It is drawn one
@@ -1920,16 +2313,129 @@ textarea {
 .editor__group {
   display: inline-flex;
   align-items: center;
+  gap: 0.1rem;
   margin-left: -1px;
-  padding: 0 0.4rem;
-  background: linear-gradient(var(--rule-strong), var(--rule-strong)) left center / 1px 1.1rem no-repeat;
+  padding: 0 0.5rem;
+  background: linear-gradient(var(--rule-strong), var(--rule-strong)) left center / 1px 1.2rem no-repeat;
 }
 
 .editor__group.editor__views {
   margin-left: auto;
   padding-right: 0;
-  gap: 0.15rem;
   background: none;
+}
+
+/* the lists that open under a tool: the ways a paragraph can be set, each shown as it
+   will look, and what the editor can show */
+.menu {
+  position: relative;
+}
+
+.menu__list {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0.5rem;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: max-content;
+  min-width: 15rem;
+  max-width: min(24rem, calc(100vw - 2 * var(--gutter)));
+  padding: 0.4rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--field);
+  box-shadow: 0 12px 30px rgb(var(--shade) / 0.22);
+}
+
+.menu__list[hidden] {
+  display: none;
+}
+
+.menu__list--views {
+  left: auto;
+  right: 0;
+}
+
+.menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.95rem 0.65rem;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--paper-deep);
+}
+
+.menu__item[aria-checked="true"] {
+  background: var(--gilt-wash);
+}
+
+/* the headings are parted from plain text above them, and the quotation and the lists from the headings */
+.menu__item[data-style="title"],
+.menu__item[data-style="quote"],
+.menu__item[data-style="list"] {
+  margin-top: 0.35rem;
+}
+
+.menu__name {
+  display: block;
+}
+
+.menu__words {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: var(--text-caps);
+  color: var(--ink-soft);
+}
+
+.sample {
+  display: block;
+  color: var(--ink);
+}
+
+.sample--title {
+  font-size: 1.6rem;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.sample--heading {
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.sample--subheading {
+  font-style: italic;
+}
+
+.sample--quote {
+  padding: 0.1rem 0 0.1rem 0.85rem;
+  border-left: 2px solid var(--line);
+  font-style: italic;
+}
+
+.sample--list span {
+  display: list-item;
+  margin-left: 1.25rem;
+  list-style: disc;
+}
+
+.sample--numbered span {
+  list-style: decimal;
+}
+
+.sample--list span::marker {
+  color: var(--accent);
 }
 
 .editor__panes {
@@ -1938,6 +2444,7 @@ textarea {
 }
 
 .editor__bar:not([hidden]) + .editor__panes textarea,
+.editor__bar:not([hidden]) + .editor__panes .editor__page,
 .editor__bar:not([hidden]) + .editor__panes .editor__preview {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
@@ -1949,20 +2456,110 @@ textarea {
   resize: none;
 }
 
-.editor.is-dropping textarea {
+.editor.is-dropping textarea,
+.editor.is-dropping .editor__page {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px var(--focus-wash);
 }
 
+.editor[data-view="page"] textarea,
 .editor[data-view="preview"] textarea {
   display: none;
 }
 
+/* the page: a sheet with room around the words, set as they will be read */
+.editor__page {
+  min-height: 26rem;
+  padding: 2rem 2.5rem 3.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--field);
+  line-height: 1.55;
+  cursor: text;
+  transition: border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.editor__page:hover {
+  border-color: var(--rule-strong);
+}
+
+.editor__page:focus {
+  outline: 2px solid transparent;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+.editor.is-loading .editor__page {
+  opacity: 0.55;
+}
+
+/* what to do with an empty page, said where the first words will go */
+.editor__page.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  font-style: italic;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.editor__page pre {
+  white-space: pre-wrap;
+}
+
+.editor__page a {
+  cursor: text;
+}
+
+/* what is more than words is held whole: it is pressed to be changed, not typed in */
+.editor__page .held {
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.editor__page span.held {
+  padding: 0.05em 0.12em;
+}
+
+.editor__page .held:hover {
+  background: var(--focus-wash);
+  box-shadow: 0 0 0 2px var(--focus-wash);
+}
+
+.editor__page .held--member,
+.editor__page .held--article {
+  cursor: default;
+}
+
+.editor__page .held--member a,
+.editor__page .held--article a {
+  cursor: default;
+}
+
+.editor__page .held--source p {
+  margin: 0 0 1em;
+  font-family: var(--mono);
+  font-size: 0.82em;
+  white-space: pre-wrap;
+  color: var(--ink-soft);
+}
+
+.editor__page .held--waiting {
+  margin: 0 0 1em;
+  padding: 1.4rem 1rem;
+  border: 1px dashed var(--rule-strong);
+  font-style: italic;
+  text-align: center;
+  color: var(--ink-soft);
+  cursor: progress;
+}
+
 .editor__preview {
   min-height: 26rem;
-  padding: 1rem 1.5rem 2rem;
+  padding: 1.25rem 2.5rem 3rem;
   border: 1px solid var(--rule);
-  border-radius: 2px;
+  border-radius: 3px;
   background: var(--paper-light);
 }
 
@@ -2007,18 +2604,152 @@ textarea {
   border-bottom-right-radius: 0;
 }
 
+/* under the page there is nothing, until there is something to say: what went wrong, or what was just done */
 .editor__foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.1rem 1.5rem;
-  margin: 0.45rem 0 0;
+  margin: 0.6rem 0 0;
   font-size: 1rem;
   color: var(--ink-soft);
 }
 
+.editor__foot:not(:has([data-status]:not(:empty))) {
+  display: none;
+}
+
 .editor__foot .is-bad {
   color: var(--madder);
+}
+
+/* a few things asked for in a small window over the page: where a link leads, what a formula says */
+.ask {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: 5px;
+  background: var(--paper-light);
+  box-shadow: 0 24px 60px rgb(var(--shade) / 0.35);
+  color: var(--ink);
+  overflow: auto;
+}
+
+.ask::backdrop {
+  background: rgba(20, 14, 10, 0.5);
+}
+
+.ask__form {
+  display: flex;
+  flex-direction: column;
+  padding: 1.6rem 1.8rem 1.7rem;
+}
+
+.ask__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.ask label {
+  margin: 1.1rem 0 0.4rem;
+  color: var(--ink-soft);
+}
+
+.ask .hint {
+  margin: 0.4rem 0 0;
+}
+
+.ask__title + .hint {
+  margin-top: 0;
+}
+
+.ask textarea {
+  min-height: 0;
+}
+
+.ask__typed {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  font-variant-numeric: lining-nums;
+}
+
+.ask label.ask__check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ask__check input {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--focus);
+}
+
+.ask__preview {
+  min-height: 3.4rem;
+  margin-top: 1.1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 3px;
+  background: var(--field);
+  overflow-x: auto;
+}
+
+.ask__preview:empty::before {
+  content: "It will be shown here as it is written.";
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.ask__found {
+  max-height: 17rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ask__choice {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.85rem 0.55rem;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ask__choice:hover,
+.ask__choice:focus-visible {
+  background: var(--gilt-wash);
+}
+
+.ask__none {
+  padding: 0.5rem 0.85rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.ask__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1.6rem;
+}
+
+.ask__actions .button {
+  margin: 0;
+}
+
+.ask__remove {
+  margin-left: auto;
 }
 
 /* writing that was never saved, kept by the browser and offered back */
@@ -2030,30 +2761,6 @@ textarea {
   display: flex;
   gap: 1.25rem;
   margin-top: 0.3rem !important;
-}
-
-/* everything the text understands, folded away under the editor */
-.guide {
-  margin-top: 0.9rem;
-  font-size: var(--text-small);
-}
-
-.guide__marks {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 0.4rem 1.5rem;
-  margin: 0.8rem 0 0.4rem;
-  color: var(--ink-soft);
-}
-
-.guide__marks dd {
-  margin: 0;
-}
-
-.guide__marks code {
-  display: inline-block;
-  white-space: pre-wrap;
-  color: var(--ink);
 }
 
 /* versions: a post's history, one version as it stood, and what changed between two */
@@ -2309,6 +3016,12 @@ del {
   margin-left: 1rem;
 }
 
+/* what else there is, under the list */
+.members__more {
+  margin: 1.6rem 0 0;
+  font-size: var(--text-small);
+}
+
 /* what a sub-admin has been given, under the word that says they are one */
 .members__can {
   display: block;
@@ -2411,7 +3124,7 @@ del {
   align-items: center;
   justify-content: center;
   padding: clamp(1.5rem, 6vh, 3.5rem) var(--gutter);
-  background: radial-gradient(ellipse 46rem 34rem at 50% 46%, #f8f3e5, var(--paper) 72%);
+  background: radial-gradient(ellipse 46rem 34rem at 50% 46%, var(--paper-light), var(--paper) 72%);
 }
 
 /* a leaf of lighter paper inside a double rule, saffron without and camel within */
@@ -2419,9 +3132,7 @@ del {
   position: relative;
   width: 100%;
   max-width: 26.5rem;
-  /* the device sits astride the top rule, so the leaf is set down by half of it */
-  margin-top: 3rem;
-  padding: 4.6rem 3rem 2.2rem;
+  padding: 3rem 3rem 2.2rem;
   border: 1px solid var(--gilt);
   border-radius: 2px;
   background: var(--paper-light);
@@ -2451,22 +3162,6 @@ del {
     var(--pin) right top / 6px 6px no-repeat,
     var(--pin) left bottom / 6px 6px no-repeat,
     var(--pin) right bottom / 6px 6px no-repeat;
-}
-
-/* the palm of knowledge, in a roundel that breaks the rule */
-.gate__device {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 6rem;
-  height: 6rem;
-  padding: 0.8rem 0 0.7rem;
-  border: 1px solid var(--gilt);
-  border-radius: 50%;
-  background: var(--paper-light);
-  box-shadow: inset 0 0 0 4px var(--paper-light), inset 0 0 0 5px var(--rule);
-  object-fit: contain;
-  transform: translate(-50%, -50%);
 }
 
 .gate__mark {
@@ -2503,16 +3198,7 @@ del {
 
 .gate__rule {
   width: 8.5rem;
-  margin: 2.1rem auto 0.9rem;
-}
-
-.gate__foot {
-  margin: 0;
-  font-size: 1.1rem;
-  font-style: italic;
-  line-height: 1.4;
-  text-align: center;
-  color: var(--ink-soft);
+  margin: 2.1rem auto 0.3rem;
 }
 
 .gate__back {
@@ -3025,79 +3711,349 @@ input[type="radio"] {
   color: var(--madder);
 }
 
-/* the guide ---------------------------------------------------------------- */
+/* A conversation that is not a page to itself is set in a box of its own, which
+   scrolls. The box is laid from its foot upwards, so that it rests at the latest
+   message, with or without a script to take it there. */
+.talking--boxed {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 
-.guide-contents {
-  margin: 0 0 2.5rem;
-  padding: 0.9rem 1.2rem 1rem;
+.talking__said {
+  display: flex;
+  flex-direction: column-reverse;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+
+.talking__said:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.talking--boxed .talk__form {
+  position: static;
+  margin: 0;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid var(--rule);
+  background: none;
+}
+
+.talking--boxed .talk {
+  padding: 0.2rem 0 1rem;
+}
+
+.talking--boxed .empty {
+  margin: 0;
+  padding: 0.6rem 0 1.2rem;
+}
+
+/* a project's conversation, on the project's own page */
+.conversation {
+  margin: 2.6rem 0 2.4rem;
+  scroll-margin-top: 1rem;
+}
+
+.conversation > .hint {
+  margin: 0.35rem 0 1rem;
+}
+
+.conversation .talking {
+  padding: 1rem 1.2rem 1.1rem;
   border: 1px solid var(--rule);
   border-radius: 2px;
   background: var(--paper-light);
 }
 
-.guide-contents ol {
+.conversation .talking__said {
+  max-height: 24rem;
+}
+
+.section-title .badge {
+  letter-spacing: 0;
+}
+
+/* messages, beside the page: the list of conversations, or one of them */
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  width: min(27rem, 100vw);
+  border-left: 1px solid var(--rule-strong);
+  background: var(--paper);
+  box-shadow: -18px 0 40px rgb(var(--shade) / 0.18);
+  animation: panel-in 160ms ease-out;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.panel:focus {
+  outline: none;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.2rem);
+  }
+}
+
+.panel__head {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
   margin: 0;
-  padding-left: 1.4rem;
-  columns: 2;
-  column-gap: 2.5rem;
+  padding: 0.85rem 1.4rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-small);
 }
 
-.guide-contents li::marker {
-  color: var(--accent);
-}
-
-.guide-contents a {
+.panel__head a,
+.panel__back a {
+  color: var(--ink-soft);
   text-decoration-color: transparent;
 }
 
-.guide-contents a:hover {
+.panel__head a:hover,
+.panel__back a:hover {
+  color: var(--ink);
   text-decoration-color: currentColor;
 }
 
-.manual section {
-  scroll-margin-top: 1rem;
+.panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1.1rem 1.4rem 1.2rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transition: opacity 120ms ease;
 }
 
-.manual section + section {
-  margin-top: 2.75rem;
-  padding-top: 2.25rem;
+.panel__body.is-loading {
+  opacity: 0.55;
+}
+
+/* one conversation fills the panel, and only what has been said scrolls */
+.panel__body[data-shows="room"] {
+  overflow: hidden;
+}
+
+.panel__body > [data-part="room"] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel__body .talking--boxed {
+  flex: 1;
+  margin-top: 0.9rem;
+  padding-top: 0.2rem;
   border-top: 1px solid var(--rule);
 }
 
-.manual h2 {
-  margin-top: 0;
-  font-size: 1.7rem;
-  font-weight: 400;
+.panel__body .talking__said {
+  flex: 1;
+  margin-right: -0.7rem;
+  padding-right: 0.7rem;
 }
 
-.manual h3 {
-  margin-top: 1.6em;
+.panel__back {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-small);
+}
+
+.panel__back a::before {
+  content: "\2039\00a0";
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.panel__body .rooms {
+  margin: 0.9rem 0 1.4rem;
+}
+
+.panel__body .room__name {
+  font-size: 1.25rem;
+}
+
+.panel__body .talk__people {
+  margin-top: 0.3rem;
+}
+
+.panel__start .form {
+  margin-top: 0.4rem;
+}
+
+/* Who is reading, over the whole of every signed-in page: the member's name, the day and the
+   number of their sign-in, repeated, and so faint as to be passed over. It takes no part in the
+   page (nothing can be pressed on it, and what is under it is selected as if it were not there),
+   but a screenshot carries it. The picture it repeats is made for each member by the server. */
+.mark {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background-repeat: repeat;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* a picture opened by itself */
+.alone {
+  margin: 0;
+  text-align: center;
+}
+
+.alone img {
+  max-width: 100%;
+  max-height: 82vh;
+  height: auto;
+}
+
+.alone__back {
+  margin: 1.6rem 0 0;
+  font-size: var(--text-small);
+  text-align: center;
+}
+
+/* notifications, on the account page: how things stand on this device, and what can be done about it */
+.notify {
+  margin: 1rem 0 1.4rem;
+}
+
+.notify__state {
+  margin: 0 0 0.8rem;
+}
+
+.notify__state.is-bad {
+  color: var(--madder);
+}
+
+.notify__acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.7rem 1.3rem;
+  margin: 0;
+}
+
+.notify__acts .button {
+  margin: 0;
+}
+
+.notify__acts:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+/* the way to write to a member, from their page */
+.member__write {
+  margin: 1.1rem 0 0;
+}
+
+.member__write .button {
+  margin: 0;
+}
+
+/* the projects, at the head of the journal: the member's own by name, and the way to the rest */
+.shelf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1.4rem;
+  margin: -0.3rem 0 2.2rem;
+  padding: 0.7rem 0 0.8rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.shelf__title {
+  margin: 0;
   font-size: var(--text-caps);
   font-weight: 400;
+  line-height: 1.5;
   letter-spacing: var(--tracking);
   text-transform: uppercase;
   color: var(--accent);
 }
 
-.manual li {
-  margin: 0.45em 0;
+.shelf a {
+  text-decoration-color: transparent;
 }
 
-.manual__menu {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 0.35rem 1.5rem;
-  margin: 0 0 1em;
+.shelf a:hover {
+  text-decoration-color: currentColor;
 }
 
-.manual__menu dd {
+.shelf__title a {
+  color: inherit;
+}
+
+.shelf__list {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  gap: 0.1rem 1.3rem;
+  min-width: 0;
   margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shelf__list li {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.shelf__rest,
+.shelf__none,
+.shelf__more {
+  font-size: var(--text-small);
   color: var(--ink-soft);
 }
 
-.manual .guide__marks {
-  margin: 0 0 1.2em;
-  font-size: var(--text-small);
+.shelf__none {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+.shelf__more {
+  display: flex;
+  gap: 1.1rem;
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+}
+
+.shelf__more a,
+.shelf__rest a {
+  color: inherit;
+}
+
+.shelf__more a:hover,
+.shelf__rest a:hover {
+  color: var(--ink);
 }
 
 /* narrower pages ---------------------------------------------------------- */
@@ -3116,32 +4072,35 @@ input[type="radio"] {
     font-size: 1.55rem;
   }
 
-  .masthead__you {
-    gap: 0 1rem;
-    font-size: 1.05rem;
-  }
-
-  /* the places are set as a line of words, so that when they must take two
-     lines the lines come out even rather than leaving one word behind */
   .masthead__nav {
-    display: block;
+    gap: 0.1rem 1.4rem;
     font-size: 1.1rem;
-    line-height: 1.75;
-    text-wrap: balance;
   }
 
-  .masthead__nav a {
-    display: inline-block;
-    margin-right: 0.8rem;
-    line-height: 1.3;
+  .panel {
+    width: 100vw;
+    border-left: 0;
   }
 
-  .masthead__nav a:last-child {
-    margin-right: 0;
+  .panel__head,
+  .panel__body {
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+  }
+
+  .conversation .talking {
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 0.9rem var(--gutter) 1rem;
+    border-width: 1px 0;
+    border-radius: 0;
+  }
+
+  .shelf__more {
+    margin-left: 0;
   }
 
   .gate__leaf {
-    padding: 4.4rem 1.6rem 2rem;
+    padding: 2.5rem 1.6rem 2rem;
   }
 
   .gate__mark {
@@ -3241,13 +4200,36 @@ input[type="radio"] {
     margin: 0.3rem 0 0;
   }
 
-  .guide__marks {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.1rem;
+  /* the list of every piece: its title with its status beside it, and the handle it is moved by before them */
+  .ledger tr {
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .guide__marks dd {
-    margin-bottom: 0.5rem;
+  .ledger td:nth-child(2) {
+    font-size: inherit;
+    color: inherit;
+    text-align: left;
+  }
+
+  .ledger .ledger__status {
+    font-size: var(--text-small);
+    text-align: right;
+  }
+
+  .ledger .ledger__move {
+    padding-right: 0.2rem;
+  }
+
+  /* a sheet of paper is wider than the window: the margins give way, and the words keep their size */
+  .compose--piece .editor__page,
+  .compose--piece .editor[data-view="write"] textarea {
+    min-height: 26rem;
+    padding: 1.2rem 1.1rem 2.5rem;
+  }
+
+  .work__top {
+    flex-direction: column;
+    gap: 0.4rem;
   }
 
   .clash__sides,
@@ -3262,10 +4244,6 @@ input[type="radio"] {
   .manual__menu dd {
     margin-bottom: 0.5rem;
   }
-
-  .guide-contents ol {
-    columns: 1;
-  }
   /* the tools wrap one by one, without hairlines */
   .editor__group:not(.editor__views) {
     display: contents;
@@ -3279,8 +4257,31 @@ input[type="radio"] {
     padding: 0.32rem 0.5rem 0.38rem;
   }
 
+  .tool--menu[data-opens="styles"] {
+    min-width: 0;
+  }
+
+  /* with the groups gone, the lists open from the edge of the bar */
+  .menu__list {
+    left: 0.4rem;
+    max-width: calc(100vw - 2 * var(--gutter) - 0.8rem);
+  }
+
+  .menu__list--views {
+    left: auto;
+    right: 0.4rem;
+  }
+
+  .editor__page {
+    padding: 1.2rem 1.1rem 2.5rem;
+  }
+
   .editor__preview {
-    padding: 0.9rem 0.9rem 1.5rem;
+    padding: 0.9rem 1.1rem 1.5rem;
+  }
+
+  .ask__form {
+    padding: 1.2rem 1.2rem 1.3rem;
   }
 }
 
@@ -3288,8 +4289,8 @@ input[type="radio"] {
    press than the height of their letters, without moving anything */
 @media (pointer: coarse) {
   .masthead__nav a,
-  .masthead__you a,
-  .masthead__you .link,
+  .views a,
+  .places a,
   .post__meta a,
   .entry__foot a,
   .related__more a,
@@ -3321,9 +4322,16 @@ input[type="radio"] {
     scroll-behavior: auto;
   }
 
+  .panel {
+    animation: none;
+  }
+
   .cite,
   .button,
   .tool,
+  .editor__page,
+  .panel__body,
+  .held,
   .edge,
   .node,
   input,
@@ -3364,6 +4372,381 @@ input[type="radio"] {
 
 .page-head .page-title {
   margin-bottom: 0;
+}
+
+/* where the corpus is kept from, and the corpus itself: the title stands clear of what is under it */
+.page-head--scribe,
+.page-head--corpus {
+  margin-bottom: 2.6rem;
+}
+
+.page-head--corpus {
+  align-items: center;
+}
+
+.page-head--corpus .page-head__acts {
+  gap: 0.7rem 1.4rem;
+}
+
+.page-head__acts .button {
+  margin: 0;
+}
+
+.page-head__acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  margin: 0;
+}
+
+/* what the corpus says of a piece, folded away under its title until it is asked for */
+.annotation {
+  margin-top: 0.9rem;
+}
+
+.annotation summary {
+  font-size: var(--text-small);
+}
+
+.annotation__text {
+  max-width: var(--measure);
+  margin-top: 0.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule-strong);
+  font-size: var(--text);
+}
+
+.annotation__text > :first-child {
+  margin-top: 0;
+}
+
+.annotation__text > :last-child {
+  margin-bottom: 0;
+}
+
+/* in a form, what those who keep the corpus say of a piece besides its words: set straight on the page, with nothing round it */
+.curation {
+  display: flex;
+  flex-direction: column;
+  margin: 2.4rem 0 0;
+}
+
+.curation__tone {
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  min-width: 13rem;
+}
+
+.curation__tone label {
+  margin-top: 0;
+}
+
+.curation__tone select {
+  padding: 0.62rem 0.6rem 0.66rem;
+}
+
+/* what is said of a piece is a sentence or two, whatever the box the piece itself is written in */
+.curation textarea,
+.compose .curation textarea {
+  min-height: 5.5rem;
+}
+
+.compose .curation textarea[rows="10"] {
+  min-height: 14rem;
+}
+
+/* the things that are simply so or not so of a piece: a box to tick and its name, on the page itself */
+.checks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 2.2rem 0 0;
+}
+
+.form .checks .check {
+  display: inline-flex;
+  align-items: baseline;
+  margin: 0;
+  font-size: var(--text);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/*
+ * The list of every piece: two tables like the members', the succession and
+ * the antecedents, each piece with how far along it is. The rows have room,
+ * and what is in them stands at the middle of its row.
+ */
+.ledger {
+  margin: 0 0 3.5rem;
+  table-layout: fixed;
+}
+
+.ledger + .ledger__none {
+  margin: -2.6rem 0 3.5rem;
+}
+
+.ledger th {
+  padding: 0 1.75rem 0.9rem 0;
+}
+
+.ledger td {
+  padding: 1rem 1.75rem 1.05rem 0;
+  vertical-align: middle;
+}
+
+.ledger tbody tr:first-child td {
+  padding-top: 1.35rem;
+}
+
+.ledger th:nth-last-child(2),
+.ledger .ledger__status {
+  width: 11.5rem;
+}
+
+.ledger th:last-child,
+.ledger .members__actions {
+  width: 4rem;
+  padding-right: 0;
+}
+
+.ledger th.ledger__move,
+.ledger td.ledger__move {
+  width: 2.1rem;
+  padding-right: 0.4rem;
+}
+
+/* what else there is to say of a piece, under its title */
+.ledger__more {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.ledger cite {
+  font-style: italic;
+}
+
+/* how far along a piece is: the word alone, in the ink of the page, with nothing round it until it is pointed at */
+.ledger__status form {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.ledger__status select {
+  max-width: 100%;
+  margin-left: -0.3rem;
+  padding: 0.15rem 0.3rem 0.2rem;
+  border-color: transparent;
+  background-color: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ledger__status select:hover {
+  border-color: var(--rule);
+}
+
+.ledger__status select:focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+.ledger__status .is-saving select {
+  opacity: 0.6;
+}
+
+.ledger__status .link {
+  font-size: var(--text-small);
+}
+
+/* the handle a row is moved by: dragged, or with the arrow keys */
+.ledger__grip {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--rule-strong);
+  cursor: grab;
+  touch-action: none;
+}
+
+.ledger__grip:hover,
+.ledger__grip:focus-visible {
+  color: var(--ink);
+}
+
+.ledger tr.is-moving {
+  background: var(--paper-deep);
+}
+
+.ledger tr.is-moving .ledger__grip,
+.ledger tbody.is-ordering {
+  cursor: grabbing;
+}
+
+.ledger tbody.is-ordering {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* changing a password: each thing asked for stands clear of the last */
+.password label {
+  margin-top: 1.9rem;
+}
+
+.password label:first-of-type {
+  margin-top: 0.6rem;
+}
+
+.password .button {
+  margin-top: 1.9rem;
+}
+
+/* what can be done on a page, and the ways of looking at what is listed on it */
+.page-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2.5rem;
+  margin: 0 0 3rem;
+}
+
+/* the other pages a page leads to, each standing clear of the next */
+.page-acts .views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 2.25rem;
+}
+
+.page-acts .hint {
+  flex: 1 1 16rem;
+}
+
+.views {
+  margin: 0 0 0 auto;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.views strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* the other places Settings leads to */
+.places {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.9rem 1.8rem;
+  margin: 1.5rem 0 2.25rem;
+  padding: 0 0 1.4rem;
+  border-bottom: 1px solid var(--rule);
+  list-style: none;
+}
+
+.places li {
+  display: flex;
+  flex-direction: column;
+}
+
+.places a {
+  font-size: 1.3rem;
+}
+
+.places span {
+  font-size: var(--text-small);
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+/* a pair of short fields side by side, where there is room */
+.form__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0 1.4rem;
+  align-items: end;
+}
+
+.form__pair > div {
+  display: flex;
+  flex-direction: column;
+}
+
+/* as tall as the fields beside it, so that the labels over the two stand level */
+.form__pair select {
+  width: 100%;
+  padding: 0.55rem 0.6rem 0.6rem;
+  line-height: 1.4;
+}
+
+.form .form__pair + .hint {
+  margin: 0.55rem 0 0;
+}
+
+/* an antecedent: its title, with what can be done with it at the other end of the line; who made it and what it is; and what is said of it */
+.work__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+}
+
+.post__title--work {
+  margin-top: 0;
+}
+
+.post__title--work cite {
+  font-style: italic;
+}
+
+.post__title--work a {
+  text-decoration-color: transparent;
+}
+
+.post__title--work a:hover {
+  text-decoration-color: currentColor;
+}
+
+.work__acts {
+  flex: none;
+  display: flex;
+  gap: 0.2rem 1.25rem;
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.work__by {
+  margin: 0.5rem 0 0;
+  font-size: 1.3rem;
+  color: var(--ink-soft);
+}
+
+.post__centre {
+  margin: 0.9rem 0 0;
+}
+
+.index cite {
+  font-style: italic;
 }
 
 .search {
@@ -3449,7 +4832,16 @@ input[type="radio"] {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
   gap: 0.9rem;
-  margin: 0 0 0.8rem;
+  margin: 0 0 4.25rem;
+}
+
+/* the first heading of the page follows its title, and the next stands well clear of what is over it */
+.looks + .section-title {
+  margin-top: 0;
+}
+
+#password {
+  margin-bottom: 1.9rem;
 }
 
 /* each way the pages can look is shown as a small leaf of itself, in its own colours whatever the page's */
@@ -3477,7 +4869,6 @@ input[type="radio"] {
 }
 
 .look__leaf {
-  grid-row: 1 / 3;
   display: grid;
   place-items: center;
   width: 3.3rem;
@@ -3497,20 +4888,14 @@ input[type="radio"] {
 
 .look--paper .look__leaf {
   border-color: var(--warm-camel);
-  background: #f3ecdc;
-  color: #3f2e1f;
+  background: #e4d9c4;
+  color: #3f2e28;
 }
 
+/* its name stands at the middle of the room beside the leaf */
 .look__name {
-  align-self: end;
   line-height: 1.3;
-}
-
-.look__says {
-  align-self: start;
-  font-size: var(--text-small);
-  line-height: 1.3;
-  color: var(--ink-soft);
+  text-align: center;
 }
 
 .index--sessions li {
@@ -3656,6 +5041,339 @@ input[type="radio"] {
 :root[data-theme="night"] ::placeholder {
   color: var(--ink-soft);
   opacity: 0.75;
+}
+
+/* ---------------------------------------------------------------- numbers */
+
+/* the main admin's list of those to be invited: where each stands in it, and the end of their number */
+.numbers__lead {
+  max-width: 44rem;
+  margin: 0 0 1.5rem;
+}
+
+.numbers__place {
+  width: 2rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.numbers__number {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.numbers .tag + .members__seen {
+  margin-top: 0.2rem;
+}
+
+.numbers__failed {
+  color: var(--madder);
+}
+
+.numbers__sends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0 0 0.75rem;
+}
+
+/* putting someone down: the name and the number side by side, and under them what to do with them */
+.form--inline.numbers__add {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 44rem;
+}
+
+.numbers__adds {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 1.1rem;
+}
+
+/* a link just made, shown once to be passed on */
+.numbers__issued p {
+  margin: 0;
+}
+
+.numbers__issued .numbers__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  margin: 0.7rem 0;
+}
+
+.numbers__link code {
+  padding: 0.2em 0.55em;
+  background: var(--paper-light);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* one field and its button, rather than two fields */
+.form--inline.form--one {
+  grid-template-columns: minmax(0, 20rem) auto;
+  justify-content: start;
+}
+
+.form--one select {
+  width: 100%;
+}
+
+/* a text as it will be sent */
+.numbers__preview {
+  max-width: 26rem;
+  margin: 1.25rem 0 1.75rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.9rem 0.9rem 0.9rem 0.2rem;
+  font-size: var(--text-small);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  /* as the members are set when there is no room for a table, with the place before the name */
+  .members.numbers tr {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    gap: 0;
+  }
+
+  .members.numbers td:nth-child(2) {
+    font-size: inherit;
+    color: inherit;
+    text-align: left;
+  }
+
+  .members.numbers td:nth-child(4),
+  .members.numbers .members__actions {
+    grid-column: 2 / -1;
+  }
+
+  .members.numbers td:nth-child(4) {
+    margin-top: 0.3rem;
+  }
+}
+
+/* ------------------------------------------------------------------ send */
+
+/* what the main admin writes to the chats kept elsewhere: a box, what goes with it, and where it goes */
+.send textarea {
+  min-height: 9rem;
+  font-size: var(--text);
+}
+
+/* files are being carried over the page */
+.send--over textarea {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-wash);
+}
+
+.send__list {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.send__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-small);
+}
+
+.send__shown {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.send__name {
+  flex: 1 1 10rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.send__size {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.send__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 0.75rem 0 0;
+  font-size: var(--text-small);
+}
+
+.form .send__add label {
+  margin: 0;
+  font-size: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.send__add:focus-within label {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.send__progress {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.views.send__chats {
+  margin: 1.5rem 0 0;
+}
+
+.send__just .sent__to {
+  margin: 0;
+  font-size: inherit;
+}
+
+/* what was sent, newest first, each with how it went to each chat */
+.sent {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sent__one {
+  padding: 0.9rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sent__one:first-child {
+  border-top: 1px solid var(--frame);
+}
+
+.sent__when,
+.sent__files {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.sent__body {
+  margin: 0.25rem 0 0.3rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sent__to {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+}
+
+.sent__went {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.6rem;
+  padding: 0.1rem 0;
+}
+
+.sent__chat {
+  font-weight: 500;
+}
+
+.sent__on,
+.sent__why {
+  color: var(--ink-soft);
+}
+
+.sent__state::before {
+  content: "· ";
+  color: var(--ink-soft);
+}
+
+.sent__went[data-state="sent"] .sent__state {
+  color: var(--well);
+}
+
+.sent__went[data-state="failed"] .sent__state {
+  color: var(--madder);
+}
+
+.sent__went form,
+.sent__forget {
+  display: inline;
+}
+
+.sent__forget {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: var(--text-small);
+}
+
+.sent__forget[hidden],
+.sent__went form[hidden] {
+  display: none;
+}
+
+/* an account on another service: how it stands, and the code that links it */
+.account__lead {
+  max-width: 44rem;
+  margin: 1.75rem 0 0;
+}
+
+.account__stands {
+  margin: 0 0 1rem;
+}
+
+.account__ways {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: start;
+}
+
+.account__ways .form {
+  width: 100%;
+}
+
+.account__more,
+.account__unlink {
+  margin: 1rem 0 0;
+  font-size: var(--text-small);
+}
+
+/* black on white whatever the lighting, since it is a telephone that reads it */
+.account__qr {
+  width: min(100%, 17rem);
+  margin: 1rem 0;
+  padding: 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: #fff;
+}
+
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.account__code {
+  margin: 1rem 0;
+  font-size: 2rem;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: 0.18em;
 }
 
 /* a formula that could not be set is shown as typed, in the red of whichever page it is on */

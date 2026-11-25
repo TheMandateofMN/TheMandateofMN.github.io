@@ -8,8 +8,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { config, REPO_ROOT, SERVER_ROOT } from "./config.mjs";
 import { wordCount } from "./diff.mjs";
-import { can, held, isSubAdmin, PERMISSIONS, standing } from "./permissions.mjs";
+import { markAddress } from "./mark.mjs";
+import { can, held, isSubAdmin, PERMISSIONS, scribes, standing } from "./permissions.mjs";
 import { clip, escapeHtml, excerpt, renderNote, renderPost, timeTag, typeset } from "./render.mjs";
+import { statusName, statusOf, STATUSES } from "./status.mjs";
+import { byline, MOST_ANNOTATION, outwardLink, TONES } from "./works.mjs";
 
 class Markup {
   constructor(value) {
@@ -36,7 +39,7 @@ export function html(strings, ...values) {
 }
 
 /* the stylesheet and scripts are cached hard, so their address changes with them */
-const VERSION = ["forum.css", "forum.js", "editor.js", "graph.js", "chat.js"]
+const VERSION = ["forum.css", "forum.js", "markdown.js", "editor.js", "corpus.js", "scribe.js", "chat.js", "notify.js", "icon-192.png"]
   .reduce((hash, file) => hash.update(readFileSync(join(SERVER_ROOT, "public", file))), createHash("sha1"))
   .digest("hex")
   .slice(0, 10);
@@ -54,12 +57,16 @@ const FONTS = shared("fonts", "eb-garamond.css");
 /* the colours everything but the text and the paper is drawn in; forum.css says what each is used for */
 const PALETTE = shared("palette.css");
 
+/* the leaves that stand either side of the landing page stand either side of a page here: a length of vine, and the flourish it ends in */
+const VINE = shared("vine.svg");
+const VINE_TIP = shared("vine-tip.svg");
+
 /* how a page can look, and the colour a phone's browser frames each in */
-const THEMES = { paper: "#f3ecdc", night: "#0b0a08" };
+const THEMES = { paper: "#e4d9c4", night: "#0b0a08" };
 
 export const csrfField = (session) => html`<input type="hidden" name="_csrf" value="${session.csrf}" />`;
 
-const wordmark = html`<span class="initial" data-letter="G" aria-hidden="true">G</span
+export const wordmark = html`<span class="initial" data-letter="G" aria-hidden="true">G</span
   ><span aria-hidden="true">esserit</span><span class="visually-hidden">Gesserit</span>`;
 
 export const isAdmin = (session) => session.user.role === "admin";
@@ -81,10 +88,12 @@ export const named = (title, opening, length = 60) => title || excerpt(opening, 
  * `scripts` names what a page runs besides forum.js; `math` brings the
  * stylesheet and fonts that formulas are set in.
  */
-function shell({ title, body, bodyClass = "", scripts = [], math = false, theme = "paper" }) {
+export function shell({ title, body, bodyClass = "", scripts = [], math = false, theme = "paper", session = null }) {
   const look = Object.hasOwn(THEMES, theme) ? theme : "paper";
+  // what the scripts of a signed-in page go by: whose it is, which sign-in, and whether that has notifications on
+  const whose = session && html` data-me="${session.user.id}" data-session="${session.id}" data-pushed="${session.pushed ? 1 : 0}"`;
   return typeset(html`<!DOCTYPE html>
-<html lang="en" data-theme="${look}">
+<html lang="en" data-theme="${look}"${whose}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -97,6 +106,10 @@ function shell({ title, body, bodyClass = "", scripts = [], math = false, theme 
     ${math && html`<link rel="stylesheet" href="/katex/katex.min.css?v=${VERSION}" />`}
     <link rel="stylesheet" href="${PALETTE}" />
     <link rel="stylesheet" href="/static/forum.css?v=${VERSION}" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v=${VERSION}" />
+    <link rel="apple-touch-icon" href="/static/icon-180.png?v=${VERSION}" />
+    <meta name="apple-mobile-web-app-title" content="Gesserit" />
     ${["forum", ...scripts].map((name) => html`<script src="/static/${name}.js?v=${VERSION}" defer></script>`)}
   </head>
   <body class="${bodyClass}">
@@ -106,58 +119,97 @@ function shell({ title, body, bodyClass = "", scripts = [], math = false, theme 
 `.value);
 }
 
+/* the two things at the end of the menu that are done rather than gone to, each drawn small */
+const glyph = (paths) =>
+  html`<svg class="masthead__glyph" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">${raw(paths)}</svg>`;
+const GLYPHS = {
+  messages: glyph('<path d="M4.5 5.5h15v10.5h-8.2L7 19.6V16H4.5z" /><path d="M8.2 9.4h7.6M8.2 12.2h5" />'),
+  signOut: glyph('<path d="M13.5 4.5h-8v15h8" /><path d="M10 12h10.5M17 8.2l3.8 3.8-3.8 3.8" />'),
+};
+
+/* which of the places in the menu each page belongs to */
+const PLACE = {
+  scribe: "scribe",
+  write: "scribe",
+  search: "scribe",
+  projects: "scribe",
+  members: "scribe",
+  corpus: "corpus",
+  post: "corpus",
+  canon: "corpus",
+  work: "corpus",
+  submit: "corpus",
+  account: "preferences",
+};
+
+/* one side of a page's leaves: the vine between its two flourishes, drawn by the stylesheet */
+const vine = (side) =>
+  html`<div class="vines__side vines__side--${side}">
+    <span class="vines__tip"></span><span class="vines__stem"></span><span class="vines__tip vines__tip--foot"></span>
+  </div>`;
+
 /**
- * A signed-in page. `current` names the entry of the menu that this page is;
- * `width` is "wide" for tables and "full" for the graph. The formula
- * stylesheet comes with any page that has a formula on it, or with `math`.
+ * A signed-in page. `current` names the page this is, which says which entry
+ * of the menu it stands under; `width` is "wide" for tables, "full" for the
+ * widest of those, "desk" for the page a piece is written on, and "sheet" for
+ * the corpus. The formula stylesheet comes with any page that has a formula
+ * on it, or with `math`. Every page stands between the leaves of the landing
+ * page, where the window has room for them.
  */
 export function page({ title, session, main, width = "", current = "", scripts = [], math = false }) {
   const { user } = session;
-  // the two entries only some have: for the admins, and for the sub-admins given what each leads to
-  const writes = may(session, "write");
-  const keeps = may(session, "members");
-  const item = (key, href, label) =>
-    html`<a href="${href}" ${current === key && raw('aria-current="page"')}>${label}</a>`;
-  const name =
-    session.tagged > 0
-      ? html`${user.name}
-          <span class="badge" aria-hidden="true">${session.tagged}</span
-          ><span class="visually-hidden">, ${plural(session.tagged, "new tag")}</span>`
-      : user.name;
-  const chat =
-    session.unread > 0
-      ? html`Chat
-          <span class="badge" aria-hidden="true">${session.unread > 99 ? "99+" : session.unread}</span
-          ><span class="visually-hidden">, ${plural(session.unread, "unread message")}</span>`
-      : "Chat";
+  // the entry a page stands under is marked; if the page is that entry's own, as the page it is
+  const item = (place, own, href, label) =>
+    html`<a href="${href}" ${PLACE[current] === place && raw(`aria-current="${current === own ? "page" : "true"}"`)}>${label}</a>`;
+  // only those who keep the forum have the page it is kept from; everyone else has the corpus, and comes to it first
+  const keeps = scribes(user);
+  // where there are messages they are not a place of their own in the menu: they open beside whatever page this is
+  const messages = config.messages && html`<a
+    class="masthead__icon masthead__messages"
+    href="/chat"
+    data-messages
+    title="Messages"
+    ${current === "messages" && raw('aria-current="page"')}
+    >${GLYPHS.messages}<span class="visually-hidden">Messages</span><span data-unread
+      >${session.unread > 0 &&
+      html` <span class="badge" aria-hidden="true">${session.unread > 99 ? "99+" : session.unread}</span
+        ><span class="visually-hidden">, ${plural(session.unread, "unread message")}</span>`}</span
+    ></a
+  >`;
   return shell({
     title,
-    scripts,
-    theme: user.theme || "night",
+    scripts: config.messages ? [...scripts, "chat"] : scripts,
+    session,
+    theme: user.theme || "paper",
     math: math || main.value.includes('class="katex'),
     body: html`
       <a class="skip" href="#main">Skip to the page</a>
-      <header class="masthead${(writes || keeps) && " masthead--long"}">
-        <a class="masthead__mark" href="/">${wordmark}</a>
+      <header class="masthead">
+        <a class="masthead__mark" href="${keeps ? "/" : "/corpus"}">${wordmark}</a>
         <nav class="masthead__nav" aria-label="Site">
-          ${item("journal", "/", "Journal")} ${item("canon", "/canon", "Canon")} ${item("graph", "/graph", "Graph")}
-          ${item("projects", "/projects", "Projects")} ${item("chat", "/chat", chat)}
-          ${writes && item("write", "/write", "Write")} ${keeps && item("members", "/members", "Members")}
-          ${item("guide", "/guide", "Guide")}
+          ${keeps && item("scribe", "scribe", "/", "Scribe")} ${item("corpus", "corpus", "/corpus", "Corpus")}
+          ${item("preferences", "account", "/account", "Preferences")}
         </nav>
         <div class="masthead__you">
-          ${item("account", "/account", name)}
+          ${messages}
           <form method="post" action="/logout">
             ${csrfField(session)}
-            <button class="link" type="submit">Sign out</button>
+            <button class="masthead__icon" type="submit" title="Sign out (${user.name})">
+              ${GLYPHS.signOut}<span class="visually-hidden">Sign out</span>
+            </button>
           </form>
         </div>
       </header>
-      <main class="column${width && ` column--${width}`}" id="main">${main}</main>
+      <div class="leaf${width && ` leaf--${width}`}" style="--vine:url(${VINE});--vine-tip:url(${VINE_TIP})">
+        <div class="vines" aria-hidden="true">${vine("left")}${vine("right")}</div>
+        <main class="column${width && ` column--${width}`}" id="main">${main}</main>
+      </div>
       <footer class="footer">
         <span class="footer__rule" aria-hidden="true"></span>
         <a href="${config.landingUrl}">gesserit.org</a>
       </footer>
+      ${/* who is reading, laid over the whole page too faintly to be seen: it takes no part in the page, and a screenshot carries it */ ""}
+      <div class="mark" aria-hidden="true" style="background-image:url(${markAddress(session)})"></div>
     `,
   });
 }
@@ -173,7 +225,6 @@ export function signInPage({ error, next, username = "" }) {
     bodyClass: "gate",
     body: html`
       <main class="gate__leaf">
-        <img class="gate__device" src="/assets/palm.svg" alt="" width="48" height="64" />
         <p class="gate__mark"><a href="${config.landingUrl}">${wordmark}</a></p>
         <h1 class="rubric gate__title">Sign in</h1>
         <form class="form gate__form" method="post" action="/login">
@@ -195,7 +246,6 @@ export function signInPage({ error, next, username = "" }) {
           <button class="button" type="submit">Enter</button>
         </form>
         <div class="gate__rule" aria-hidden="true"></div>
-        <p class="gate__foot">Members only. Ask to be added.</p>
       </main>
       <a class="gate__back" href="${config.landingUrl}">gesserit.org</a>
     `,
@@ -204,18 +254,9 @@ export function signInPage({ error, next, username = "" }) {
 
 /* --------------------------------------------------------------- journal */
 
-/* Between the parts of a dateline. Each is a space made wide, the first with a
-   point drawn on it: where the line breaks there, the space goes and takes
-   the point with it, so that no line of a dateline begins with one. */
-const POINT = html`<span class="rubric__sep rubric__sep--point"> </span>`;
-const GAP = html`<span class="rubric__sep"> </span>`;
-
-/** when a post was published and who wrote it; what the main admin published is marked as of the canon */
-const dateline = (post) =>
-  html`<p class="rubric">${raw(timeTag(post.published_at || post.updated_at))}${POINT}<span class="rubric__by"
-      ><a href="${memberHref(post.author_username)}">${post.author_name}</a></span
-    >${post.status === "draft" && html`${GAP}<span class="tag">Draft</span>`}${Boolean(post.canon) &&
-    html`${GAP}<a class="tag tag--canon" href="/canon">Canon</a>`}</p>`;
+/** a title, with after it the letter that says whose the piece is, where it has one */
+const titled = (post, length = 90) =>
+  html`${named(post.title, post.body, length)}${post.hand && html`<sup class="hand">${post.hand}</sup>`}`;
 
 /** for a commentary, the post it answers; the link is there while that post can be read */
 function answers(post) {
@@ -228,7 +269,7 @@ function answers(post) {
 }
 
 /** how much has been said about a post, as the words of a link to it */
-function discussion(post) {
+export function discussion(post) {
   if (post.note_count + post.reply_count + post.commentary_count === 0) return "Add a margin note";
   return [
     post.note_count > 0 && plural(post.note_count, "margin note"),
@@ -239,42 +280,10 @@ function discussion(post) {
     .join(" · ");
 }
 
-/** short untitled texts are shown whole on the journal page; the rest are opened */
-const SHOWN_WHOLE = 1200;
-
-function entry(post) {
-  const link = `/p/${post.id}`;
-  const foot =
-    post.status === "draft"
-      ? html`<p class="entry__foot"><a href="${link}/edit">Edit draft</a></p>`
-      : html`<p class="entry__foot"><a href="${link}#notes">${discussion(post)}</a></p>`;
-
-  if (post.title) {
-    return html`<li class="entry">
-      ${dateline(post)} ${answers(post)}
-      <h2 class="entry__title"><a href="${link}">${post.title}</a></h2>
-      <p class="entry__excerpt">${excerpt(post.body)}</p>
-      ${foot}
-    </li>`;
-  }
-  if (post.body.length <= SHOWN_WHOLE) {
-    return html`<li class="entry">
-      ${dateline(post)} ${answers(post)}
-      <div class="prose">${raw(renderPost(post.body))}</div>
-      ${foot}
-    </li>`;
-  }
-  return html`<li class="entry">
-    ${dateline(post)} ${answers(post)}
-    <p class="entry__excerpt">${excerpt(post.body, 520)} <a class="more" href="${link}">Read on</a></p>
-    ${foot}
-  </li>`;
-}
-
 /** the box a search is typed in; `wide` on the page of what was found, where it is the thing itself */
 const searchBox = ({ q = "", wide = false } = {}) =>
   html`<form class="search${wide && " search--wide"}" action="/search" method="get" role="search">
-    <label class="visually-hidden" for="q">Search the journal, its notes and the projects</label>
+    <label class="visually-hidden" for="q">Search what is written here and its notes</label>
     <input
       id="q"
       name="q"
@@ -302,8 +311,13 @@ export function searchPage({ session, q, found }) {
       <a class="index__title" href="/p/${row.id}">${named(row.title, row.passage.map((piece) => piece.text).join(""))}</a>
       <span class="index__quote">${marked(row.passage)}</span>
       <span class="index__meta">
-        ${row.parent_id ? "A commentary by" : row.title ? "An article by" : "A short post by"} ${row.author_name} ·
-        ${raw(timeTag(row.published_at))}
+        ${row.kind === "work"
+          ? html`${row.creator && `${row.creator} · `}An antecedent`
+          : row.parent_id
+            ? "A commentary"
+            : row.title
+              ? "An article"
+              : "A short post"}
       </span>
     </li>`;
   const note = (row) =>
@@ -334,14 +348,14 @@ export function searchPage({ session, q, found }) {
   return page({
     title: q ? `Search: ${q}` : "Search",
     session,
-    current: "journal",
+    current: "search",
     main: html`
       <h1 class="page-title">Search</h1>
       ${searchBox({ q, wide: true })}
       ${!found &&
       html`<p class="hint">
-        A few words, all of which must be there, in any order. The journal is searched, the notes in its
-        margins, and the pages of the projects you can read.
+        A few words, all of which must be there, in any order. What is written here is searched, with the
+        antecedents and the notes in the margins${config.projects && ", and the pages of the projects you can read"}.
       </p>`}
       ${found?.short && html`<p class="empty empty--notes">Give at least two letters to look for.</p>`}
       ${found &&
@@ -350,50 +364,131 @@ export function searchPage({ session, q, found }) {
       html`<p class="empty empty--notes">
         Nothing here has ${found.words.length > 1 ? "all of those words" : "that word"}. Try fewer words, or part of one.
       </p>`}
-      ${found && part("In the journal", found.posts, post)} ${found && part("In the margins", found.notes, note)}
+      ${found && part("In what is written", found.posts, post)} ${found && part("In the margins", found.notes, note)}
       ${found && part("In projects", found.pages, projectPage)}
     `,
   });
 }
 
-export function journalPage({ session, posts, drafts, pageNumber, pageCount }) {
-  const empty = posts.length === 0 && drafts.length === 0;
+/* how many of a member's projects the first page names before it says how many more there are */
+const SHELF = 4;
+
+/**
+ * The projects, on the first page: the ones the member is working on, the most
+ * lately changed first, and the way to the rest. `open` is how many of other
+ * members' projects anyone may read.
+ */
+function shelf({ mine, open }) {
+  const more = mine.length - SHELF;
+  return html`<nav class="shelf" aria-labelledby="shelf-title">
+    <h2 class="shelf__title" id="shelf-title"><a href="/projects">Projects</a></h2>
+    ${mine.length > 0
+      ? html`<ul class="shelf__list">
+          ${mine.slice(0, SHELF).map((each) => html`<li><a href="/projects/${each.id}">${each.title}</a></li>`)}
+          ${more > 0 && html`<li class="shelf__rest"><a href="/projects">and ${more} more</a></li>`}
+        </ul>`
+      : html`<p class="shelf__none">
+          ${open > 0 ? `${plural(open, "project")} ${open === 1 ? "is" : "are"} open to everyone.` : "You are not working on one yet."}
+        </p>`}
+    <p class="shelf__more">
+      <a href="/projects">${mine.length > 0 ? "All projects" : "See the projects"}</a>
+      <a href="/projects/new">Start one</a>
+    </p>
+  </nav>`;
+}
+
+/* the two layers of the corpus, each of which has a table of its own in the list of every piece */
+const LAYERS = [
+  { kind: "writing", name: "Succession", none: "Nothing has been written yet." },
+  { kind: "work", name: "Antecedent", none: "No antecedent has been added yet." },
+];
+
+/**
+ * Scribe: where the corpus is kept from. Every piece there is, in two
+ * tables: the succession, which is what is written here, and the
+ * antecedents. Each piece has its status, which its keeper says, and the way
+ * to change it; and each table is in the order its keeper has put it in,
+ * which those who edit change by dragging a row.
+ */
+export function scribePage({ session, pieces, projects = null, sends = false }) {
+  const edits = may(session, "edit");
+  const writes = may(session, "write");
+  const row = (post) => {
+    const work = post.kind === "work";
+    // those who edit change any piece; those who publish, what is theirs
+    const mine = edits || (writes && post.author_id === session.user.id);
+    const name = named(post.title, post.body, 80);
+    const by = work && byline(post, { short: true });
+    return html`<tr data-id="${post.id}">
+      ${edits &&
+      html`<td class="ledger__move">
+        <button class="ledger__grip" type="button" data-grip aria-label="Move ${name}: drag it, or use the arrow keys" hidden>
+          <span aria-hidden="true">⠿</span>
+        </button>
+      </td>`}
+      <td>
+        <strong><a href="/p/${post.id}">${work ? html`<cite>${post.title}</cite>` : titled(post, 80)}</a></strong>
+        ${by && html`<span class="ledger__more">${by}</span>`}
+      </td>
+      <td class="ledger__status">
+        ${mine
+          ? html`<form method="post" action="/p/${post.id}/status" data-status>
+              ${csrfField(session)}
+              <label class="visually-hidden" for="status-${post.id}">Status of ${name}</label>
+              <select id="status-${post.id}" name="status">
+                ${STATUSES.map(({ key, name: label }) => html`<option value="${key}" ${key === statusOf(post) && raw("selected")}>${label}</option>`)}
+              </select>
+              <button class="link" type="submit">Set</button>
+            </form>`
+          : statusName(post)}
+      </td>
+      <td class="members__actions">${mine && html`<a class="link" href="/p/${post.id}/edit">Edit</a>`}</td>
+    </tr>`;
+  };
+  const table = ({ kind, name, none }) => {
+    const rows = pieces.filter((post) => post.kind === kind);
+    return html`<table class="members ledger">
+        <thead>
+          <tr>
+            ${edits && html`<th class="ledger__move"><span class="visually-hidden">Order</span></th>`}
+            <th scope="col">${name}</th>
+            <th scope="col">Status</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody ${edits && raw("data-order")}>
+          ${rows.map(row)}
+        </tbody>
+      </table>
+      ${rows.length === 0 && html`<p class="empty empty--notes ledger__none">${none}</p>`}`;
+  };
   return page({
-    title: "Journal",
+    title: "Editorial",
     session,
-    current: "journal",
+    width: "wide",
+    current: "scribe",
+    scripts: ["scribe"],
     main: html`
-      <div class="page-head">
-        <h1 class="page-title">Journal</h1>
+      <div class="page-head page-head--scribe">
+        <h1 class="page-title">Editorial</h1>
         ${searchBox()}
       </div>
-      ${drafts.length > 0 &&
-      html`<section class="drafts" aria-labelledby="drafts-title">
-        <h2 class="section-title" id="drafts-title">Drafts</h2>
-        <p class="hint">
-          ${may(session, "edit")
-            ? "Only their authors, the admins and the sub-admins who edit the journal can see these until they are published."
-            : "Only you, the admins and the sub-admins who edit the journal can see these until they are published."}
-        </p>
-        <ol class="feed">
-          ${drafts.map(entry)}
-        </ol>
-      </section>`}
-      ${posts.length > 0 && html`<ol class="feed">${posts.map(entry)}</ol>`}
-      ${empty &&
-      html`<p class="empty">
-        Nothing has been published yet.${may(session, "write") && html` <a href="/write">Write the first post.</a>`}
-      </p>`}
-      ${pageCount > 1 &&
-      html`<nav class="pager" aria-label="Pages">
-        ${pageNumber > 1
-          ? html`<a href="/?page=${pageNumber - 1}" rel="prev">Newer</a>`
-          : html`<span></span>`}
-        <span class="pager__where">Page ${pageNumber} of ${pageCount}</span>
-        ${pageNumber < pageCount
-          ? html`<a href="/?page=${pageNumber + 1}" rel="next">Older</a>`
-          : html`<span></span>`}
-      </nav>`}
+      <div class="page-acts">
+        <p class="page-head__acts">${(writes || edits) && html`<a class="button" href="/write">New Piece</a>`}</p>
+        ${(may(session, "members") || sends) &&
+        html`<p class="views">
+          ${may(session, "members") && html`<a href="/members">Members</a>`}
+          ${config.invitations && isAdmin(session) && html`<a href="/invitations">Invitations</a>`}
+          ${sends && html`<a href="/send">Send</a>`}
+        </p>`}
+      </div>
+      ${projects && shelf(projects)}
+      ${LAYERS.map(table)}
+      ${edits &&
+      html`<form method="post" action="/order" data-order-form hidden>
+        ${csrfField(session)}
+        <input type="hidden" name="ids" value="" />
+      </form>`}
     `,
   });
 }
@@ -410,9 +505,8 @@ export function canonPage({ session, keeper, posts }) {
     <a class="index__title" href="/p/${post.id}">${named(post.title, post.body, 90)}</a>
     ${post.title && html`<span class="index__quote">${excerpt(post.body, 200)}</span>`}
     <span class="index__meta">
-      ${raw(timeTag(post.published_at))}${post.parent_id &&
-      html` · a commentary on ${named(post.parent_title, post.parent_opening)}`}
-      · <a href="/p/${post.id}#notes">${discussion(post)}</a>
+      ${post.parent_id && html`A commentary on ${named(post.parent_title, post.parent_opening)} · `}
+      <a href="/p/${post.id}#notes">${discussion(post)}</a>
     </span>
   </li>`;
   const kinds = [
@@ -425,12 +519,12 @@ export function canonPage({ session, keeper, posts }) {
     session,
     current: "canon",
     main: html`
+      <p class="rubric"><a href="/corpus">Corpus</a></p>
       <h1 class="page-title">Canon</h1>
       ${keeper
         ? html`<p class="lede">
             The canon is everything published by the main admin,
-            <a href="${memberHref(keeper.username)}">${keeper.name}</a>. It is listed here in the order it was
-            written, and is drawn in gold on <a href="/graph?around=u${keeper.id}">the graph</a>.
+            <a href="${memberHref(keeper.username)}">${keeper.name}</a>, listed here in the order it was written.
           </p>`
         : html`<p class="lede">The canon is what the main admin has published. There is no admin yet.</p>`}
       ${posts.length === 0 &&
@@ -457,10 +551,9 @@ export function canonPage({ session, keeper, posts }) {
 
 /* -------------------------------------------- one post, notes and replies */
 
-/** a post in a list of posts: what it is called, who wrote it and when */
+/** a post in a list of posts: what it is called */
 const listed = (post) => html`<li>
-  <a class="index__title" href="/p/${post.id}">${named(post.title, post.body, 90)}</a>
-  <span class="index__meta">${post.author_name} · ${raw(timeTag(post.published_at))}</span>
+  <a class="index__title" href="/p/${post.id}">${post.kind === "work" ? html`<cite>${post.title}</cite>` : titled(post)}</a>
 </li>`;
 
 const mayRemove = (note, session) => may(session, "moderate") || session.user.id === note.user_id;
@@ -603,55 +696,125 @@ function thread(note, n, context) {
   </li>`;
 }
 
+/**
+ * What the corpus says of a piece, folded away under its title until it is
+ * asked for: of a work, a few words on where it is strong and where it falls
+ * short; of the essay at the centre, its claims set out.
+ */
+export const annotationOf = (text) => raw(renderPost(text));
+
+const annotated = (post, centre) =>
+  post.annotation &&
+  html`<details class="fold annotation">
+    <summary>${centre ? "Claims" : "Annotation"}</summary>
+    <div class="prose annotation__text">${annotationOf(post.annotation)}</div>
+  </details>`;
+
+/**
+ * An antecedent's page, which is all the corpus says of it and nothing more:
+ * its title, whose it is and what type of thing, and its annotations. Beside
+ * the title, for those who may, the way to change it, and the way to where
+ * it stands on the corpus.
+ */
+function workArticle({ post, mayEdit }) {
+  const by = byline(post);
+  // where the work itself is to be found, if that was said: its title leads there
+  const found = post.link && outwardLink(post.link);
+  const acts = [
+    mayEdit && html`<a href="/p/${post.id}/edit">Edit</a>`,
+    post.status === "published" && html`<a href="/corpus#p${post.id}">Link to corpus</a>`,
+  ].filter(Boolean);
+  return html`<article class="post post--work">
+    <header class="post__head post__head--work">
+      <div class="work__top">
+        <h1 class="post__title post__title--work">
+          ${found
+            ? html`<a href="${found}" rel="noopener noreferrer" title="Where it is to be found"><cite>${post.title}</cite></a>`
+            : html`<cite>${post.title}</cite>`}
+        </h1>
+        ${acts.length > 0 && html`<p class="work__acts">${acts}</p>`}
+      </div>
+      ${by && html`<p class="work__by">${by}</p>`}
+    </header>
+    ${post.body.trim() && html`<div class="prose">${raw(renderPost(post.body))}</div>`}
+  </article>`;
+}
+
 export function postPage({
   session,
   post,
   threads,
   commentaries = [],
   linkedFrom = [],
+  centre = false,
+  numbers = false,
   error,
   draftNote,
   draftReply,
   draftEdit,
 }) {
-  const mayEdit = may(session, "edit") || session.user.id === post.author_id;
   const draft = post.status === "draft";
+  // those who edit change anything; those who publish, what is theirs
+  const mayEdit = may(session, "edit") || (session.user.id === post.author_id && may(session, "write"));
+  const work = post.kind === "work";
+  if (work)
+    return page({ title: post.title, session, current: "work", main: workArticle({ post, mayEdit }) });
+
+  const writes = may(session, "write");
   const context = { session, post, draftReply, draftEdit, error };
-  // what stands under the title: the version this is, and what can be done with it
+  // what stands under the title: how far along it is, until it is published, and what can be done with it.
+  // When it was written is not said, of this or of any piece.
   const meta = [
-    post.version > 1 &&
+    draft && html`<span>${statusName(post)}</span>`,
+    config.versions &&
+      post.version > 1 &&
       html`<span
         ><a href="/p/${post.id}/history">Version ${post.version}</a>, revised
         ${raw(timeTag(post.revised_at))}</span
       >`,
     mayEdit && html`<a href="/p/${post.id}/edit">Edit</a>`,
-    !draft && html`<a href="/graph?around=p${post.id}">On the graph</a>`,
+    !draft && html`<a href="/corpus#p${post.id}">Link to corpus</a>`,
+    !draft && numbers && html`<a href="/p/${post.id}/text">Text it</a>`,
+    centre && html`<span class="tag tag--canon">At the centre of the corpus</span>`,
+    Boolean(post.canon) && !centre && html`<a class="tag tag--canon" href="/canon">Canon</a>`,
+    Boolean(post.missionaria) && may(session, "edit") && html`<span class="tag tag--quiet">Missionaria</span>`,
   ].filter(Boolean);
+  // an article can be set at the centre of the corpus by those who edit what is written
+  const mayCentre = !centre && !draft && post.title && !post.parent_id && may(session, "edit");
   return page({
     title: named(post.title, post.body),
     session,
+    current: "post",
     main: html`
       <article class="post">
         <header class="post__head">
-          ${dateline(post)} ${answers(post)}
-          ${post.title && html`<h1 class="post__title">${post.title}</h1>`}
+          ${answers(post)}
+          ${post.title &&
+          html`<h1 class="post__title">${post.title}${post.hand && html`<sup class="hand">${post.hand}</sup>`}</h1>`}
           ${meta.length > 0 && html`<p class="post__meta">${meta}</p>`}
+          ${annotated(post, centre)}
+          ${mayCentre &&
+          html`<form class="post__centre" method="post" action="/p/${post.id}/centre">
+            ${csrfField(session)}
+            <button class="link link--quiet" type="submit">Set this at the centre of the corpus</button>
+          </form>`}
         </header>
         <div class="prose" data-article data-post="${post.id}" data-version="${post.version ?? ""}">
           ${raw(renderPost(post.body, { initial: Boolean(post.title) }))}
         </div>
       </article>
 
-      <div class="flourish" aria-hidden="true"></div>
+      ${!draft && html`<div class="flourish" aria-hidden="true"></div>`}
 
       ${!draft &&
+      (commentaries.length > 0 || writes) &&
       html`<section class="related" id="commentaries" aria-labelledby="commentaries-title">
         <h2 class="section-title" id="commentaries-title">Commentaries</h2>
         ${commentaries.length > 0
           ? html`<ul class="index">
                 ${commentaries.map(listed)}
               </ul>
-              <p class="related__more"><a href="/write?on=${post.id}">Write a commentary</a></p>`
+              ${writes && html`<p class="related__more"><a href="/write?on=${post.id}">Write a commentary</a></p>`}`
           : html`<p class="related__more">
               None yet. <a href="/write?on=${post.id}">Write a commentary</a>: a longer answer, set out as an
               article of its own.
@@ -665,65 +828,94 @@ export function postPage({
         </ul>
       </section>`}
 
-      <section class="notes" id="notes" aria-labelledby="notes-title">
+      ${/* the margin opens once a piece is published. Before that there is nothing in it and it is not shown; what was written in the margin of a piece since taken back is still there to be seen to */ ""}
+      ${(!draft || threads.length > 0) &&
+      html`<section class="notes" id="notes" aria-labelledby="notes-title">
         <h2 class="section-title" id="notes-title">Margin notes</h2>
         ${threads.length > 0
           ? html`<ol class="notes__list">
               ${threads.map((note, i) => thread(note, i + 1, context))}
             </ol>`
           : html`<p class="empty empty--notes">No margin notes yet.</p>`}
-        ${draft
-          ? html`<p class="hint">Notes and commentaries open once this is published.</p>`
-          : html`<form class="form note-form" id="add-note" method="post" action="/p/${post.id}/notes">
-              ${csrfField(session)}
-              <input type="hidden" name="quote" value="${draftNote?.quote || ""}" />
-              <input type="hidden" name="pos" value="${draftNote?.pos ?? ""}" />
-              ${draftNote && notice(error)}
-              <label for="note-body">Add a margin note</label>
-              <p class="hint">
-                <span data-quote-hint>To write about a particular passage, select it in the text above first.</span>
-                Type <code>@</code> to tag another member.
-              </p>
-              <div class="note-form__quote" data-quote-preview hidden>
-                <blockquote class="note__quote"></blockquote>
-                <button class="link link--quiet" type="button" data-quote-clear>Detach passage</button>
-              </div>
-              <textarea
-                id="note-body"
-                name="body"
-                rows="4"
-                maxlength="${config.maxNoteLength}"
-                data-suggest="people"
-                required
-              >${draftNote?.body || ""}</textarea>
-              <button class="button" type="submit">Add note</button>
-            </form>`}
-      </section>
+        ${!draft &&
+        html`<form class="form note-form" id="add-note" method="post" action="/p/${post.id}/notes">
+          ${csrfField(session)}
+          <input type="hidden" name="quote" value="${draftNote?.quote || ""}" />
+          <input type="hidden" name="pos" value="${draftNote?.pos ?? ""}" />
+          ${draftNote && notice(error)}
+          <label for="note-body">Add a margin note</label>
+          <p class="hint">
+            <span data-quote-hint>To write about a particular passage, select it in the text above first.</span>
+            Type <code>@</code> to tag another member.
+          </p>
+          <div class="note-form__quote" data-quote-preview hidden>
+            <blockquote class="note__quote"></blockquote>
+            <button class="link link--quiet" type="button" data-quote-clear>Detach passage</button>
+          </div>
+          <textarea
+            id="note-body"
+            name="body"
+            rows="4"
+            maxlength="${config.maxNoteLength}"
+            data-suggest="people"
+            required
+          >${draftNote?.body || ""}</textarea>
+          <button class="button" type="submit">Add note</button>
+        </form>`}
+      </section>`}
     `,
   });
 }
 
 /* ----------------------------------------------------------------- write */
 
-/* the editor's buttons, in the groups they are set out in; the script gives each its work */
-const TOOLS = [
+/*
+ * The editor's buttons. A button says what it does by showing it: the ways a
+ * paragraph can be set are each drawn as they will look, and the lists and the
+ * quotation have a small picture of themselves. The script gives each its work.
+ */
+const drawn = (paths, title) =>
+  html`<svg class="tool__icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+    ${title && html`<title>${title}</title>`}${raw(paths)}
+  </svg>`;
+
+const ICONS = {
+  undo: drawn('<path d="M7.5 4.5 3.5 8.5l4 4" /><path d="M4 8.5h7.5a4.5 4.5 0 0 1 0 9H9" />'),
+  redo: drawn('<path d="m12.5 4.5 4 4-4 4" /><path d="M16 8.5H8.5a4.5 4.5 0 0 0 0 9H11" />'),
+  list: drawn(
+    '<circle class="tool__dot" cx="3.5" cy="5" r="1.4" /><circle class="tool__dot" cx="3.5" cy="10" r="1.4" /><circle class="tool__dot" cx="3.5" cy="15" r="1.4" /><path d="M8 5h9M8 10h9M8 15h9" />'
+  ),
+  numbered: drawn(
+    '<text class="tool__figure" x="1" y="7">1</text><text class="tool__figure" x="1" y="12.5">2</text><text class="tool__figure" x="1" y="18">3</text><path d="M8 5h9M8 10h9M8 15h9" />'
+  ),
+  quote: drawn('<path class="tool__bar" d="M3.5 3.5v13" /><path d="M8 6h9M8 10h9M8 14h6" />'),
+};
+
+/* how a paragraph can be set, each shown in the menu as it will look on the page */
+const STYLES = [
+  ["text", "Normal text", html`<span class="sample sample--text">Normal text</span>`],
+  ["title", "Large heading", html`<span class="sample sample--title">Large heading</span>`],
+  ["heading", "Heading", html`<span class="sample sample--heading">Heading</span>`],
+  ["subheading", "Small heading", html`<span class="sample sample--subheading">Small heading</span>`],
+  ["quote", "Quotation", html`<span class="sample sample--quote">A quotation, set apart from your own words</span>`],
   [
-    ["bold", html`<b>B</b>`, "Bold", "B"],
-    ["italic", html`<i>I</i>`, "Italic", "I"],
+    "list",
+    "List",
+    html`<span class="sample sample--list"><span>A list</span><span>of things</span></span>`,
   ],
   [
-    ["heading", "Heading", "Heading: press again for a smaller one"],
-    ["quote", "Quote", "Quotation"],
-    ["list", "List", "List"],
-    ["numbered", "Numbered", "Numbered list"],
+    "numbered",
+    "Numbered list",
+    html`<span class="sample sample--list sample--numbered"><span>A numbered list</span><span>of things in order</span></span>`,
   ],
-  [
-    ["link", "Link", "Link to a web page", "K"],
-    ["article", "Article", "Link to another article here"],
-    ["picture", "Picture", "Add pictures from this computer"],
-    ["formula", "Formula", "A formula, in LaTeX"],
-    ["diagram", "Diagram", "A diagram, drawn from LaTeX (TikZ)"],
-  ],
+];
+
+/* what the editor can show: the page as it will look, the marks that make it, or how it will be read */
+const VIEWS = [
+  ["page", "Page", "Write on the page as it will look"],
+  ["write", "Plain text", "Write the same thing as plain text, with its marks"],
+  ["preview", "Preview", "See it as it will be read"],
+  ["both", "Side by side", "Plain text, with the preview beside it"],
 ];
 
 const tool = ([name, label, title, key]) =>
@@ -731,147 +923,186 @@ const tool = ([name, label, title, key]) =>
     ${label}
   </button>`;
 
-/* everything the text understands, for whoever would rather type it than press a button */
-export const MARKS = [
-  ["A new paragraph", "a blank line"],
-  ["Heading", "## Heading"],
-  ["Italic, bold", "*italic*  **bold**"],
-  ["Quotation", "> what was said"],
-  ["List", "- an item\n1. a numbered item"],
-  ["Link", "[the words](https://…)"],
-  ["Another article here", "[[Its title]]\n[[Its title|other words]]"],
-  ["Tag a member", "@name"],
-  ["Picture", '![what it shows](address "Caption")'],
-  ["Formula in the line", "$e^{i\\pi} = -1$"],
-  ["Formula set apart", "$$\n\\int_0^1 x^2 \\, dx\n$$"],
-  ["Diagram", "```tikz A caption, if wanted\n\\draw (0,0) circle (1);\n```"],
-  ["Code", "`in the line`, or a block between ``` lines"],
-  ["A rule between sections", "---"],
-];
+const pictured = (name, title) =>
+  html`<button class="tool tool--pictured" type="button" data-do="${name}" title="${title}" aria-label="${title}" aria-pressed="false">
+    ${ICONS[name]}
+  </button>`;
 
 /**
- * The box a long text is written in, with its buttons, its preview and the
- * list of everything it understands. The form it stands in is marked
- * data-editor="some name", under which unsaved writing is kept in the
- * browser, and has a field called "title" above it.
+ * Where a long text is written. Without the script it is a plain box that
+ * takes the text with its marks. With it, the box gives way to a page that
+ * is written on as it will look, under a row of buttons; the box is still
+ * there, kept in step with the page, and is what the form sends. The form it
+ * stands in is marked data-editor="some name", under which unsaved writing is
+ * kept in the browser, and has a field called "title" above it. Under the
+ * page there is nothing but, when something goes wrong, the word of it.
+ * `needed` says the text cannot be left empty; a piece that is so far only
+ * its title can.
  */
-export function editorField({ body = "", rows = 18 }) {
+export function editorField({ body = "", rows = 18, needed = true }) {
   return html`<div class="editor" data-view="write">
-      <div class="editor__bar" role="toolbar" aria-label="Formatting" aria-controls="body" hidden>
-        ${TOOLS.map((group) => html`<span class="editor__group">${group.map(tool)}</span>`)}
-        <span class="editor__group editor__views" role="group" aria-label="What to show">
-          <button class="tool" type="button" data-show="write" aria-pressed="true">Write</button>
-          <button class="tool" type="button" data-show="preview" aria-pressed="false">Preview</button>
-          <button class="tool editor__both" type="button" data-show="both" aria-pressed="false">Side by side</button>
+      <div class="editor__bar" role="toolbar" aria-label="Formatting" hidden>
+        <span class="editor__group">
+          <button class="tool tool--pictured" type="button" data-do="undo" title="Undo" aria-label="Undo" data-key="Z">${ICONS.undo}</button>
+          <button class="tool tool--pictured" type="button" data-do="redo" title="Redo" aria-label="Redo">${ICONS.redo}</button>
+        </span>
+        <span class="editor__group menu">
+          <button class="tool tool--menu" type="button" data-opens="styles" aria-haspopup="true" aria-expanded="false" title="How this paragraph is set">
+            <span data-style-name>Normal text</span>
+          </button>
+          <span class="menu__list menu__list--styles" id="styles" role="menu" aria-label="How this paragraph is set" hidden>
+            ${STYLES.map(
+              ([name, label, sample]) =>
+                html`<button class="menu__item" type="button" role="menuitemradio" aria-checked="false" data-do="${name}" data-style="${name}" aria-label="${label}">${sample}</button>`
+            )}
+          </span>
+        </span>
+        <span class="editor__group">
+          ${tool(["bold", html`<b>B</b>`, "Bold", "B"])} ${tool(["italic", html`<i>I</i>`, "Italic", "I"])}
+        </span>
+        <span class="editor__group">
+          ${pictured("list", "List")} ${pictured("numbered", "Numbered list")} ${pictured("quote", "Quotation")}
+        </span>
+        <span class="editor__group">
+          ${tool(["link", "Link", "Link to a web page", "K"])}
+          ${tool(["article", "Article", "Link to another article here"])}
+          ${tool(["picture", "Picture", "Add pictures from this device"])}
+          ${tool(["formula", "Formula", "A formula"])}
+          ${tool(["diagram", "Diagram", "A diagram, drawn from LaTeX (TikZ)"])}
+        </span>
+        <span class="editor__group editor__views menu">
+          <button class="tool tool--menu" type="button" data-opens="views" aria-haspopup="true" aria-expanded="false" title="What the editor shows">
+            <span data-view-name>Page</span>
+          </button>
+          <span class="menu__list menu__list--views" id="views" role="menu" aria-label="What the editor shows" hidden>
+            ${VIEWS.map(
+              ([name, label, words]) =>
+                html`<button class="menu__item${name === "both" && " editor__both"}" type="button" role="menuitemradio" aria-checked="false" data-show="${name}">
+                  <span class="menu__name">${label}</span><span class="menu__words">${words}</span>
+                </button>`
+            )}
+          </span>
         </span>
       </div>
       <div class="editor__panes">
-        <textarea id="body" name="body" rows="${rows}" data-suggest="people articles" required>${body}</textarea>
+        <div class="editor__page prose" data-page role="textbox" aria-multiline="true" aria-label="Text" data-placeholder="Write here…" spellcheck="true" hidden></div>
+        <textarea id="body" name="body" rows="${rows}" data-suggest="people articles" ${needed && raw("required")}>${body}</textarea>
         <div class="editor__preview post" data-preview hidden>
           <p class="rubric editor__label">Preview</p>
           <h2 class="post__title" data-preview-title hidden></h2>
           <div class="prose" aria-label="Preview" aria-live="polite"></div>
         </div>
       </div>
-      <p class="editor__foot" hidden><span data-count></span><span data-status role="status"></span></p>
+      <p class="editor__foot" hidden><span data-status role="status"></span></p>
       <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml" multiple hidden data-pictures data-most="${config.maxUploadBytes}" />
-    </div>
-
-    <details class="fold guide">
-      <summary>Everything that can be written here</summary>
-      ${marksList()}
-    </details>
-
-    <p class="compose__file">
-      <label class="button button--quiet" for="file">Open a text file…</label>
-      <input class="visually-hidden" id="file" type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" data-load-into="body" data-title-into="title" />
-      <span class="hint">A .md or .txt file is read here in the browser and placed in the box above.</span>
-    </p>`;
+    </div>`;
 }
 
-/** everything the text understands, set out as what is wanted and what to type for it */
-export const marksList = () =>
-  html`<dl class="guide__marks">
-    ${MARKS.map(([what, how]) => html`<dt>${what}</dt><dd><code>${how}</code></dd>`)}
-  </dl>`;
+/** the two things that are simply so or not so of a piece, each a box to tick with its name and nothing more */
+export const curationChecks = (v) =>
+  html`<div class="checks">
+    <label class="check"><input type="checkbox" name="show_tell" value="1" ${v.showTell && raw("checked")} /> <span>Show and Tell</span></label>
+    <label class="check"><input type="checkbox" name="missionaria" value="1" ${v.missionaria && raw("checked")} /> <span>Missionaria</span></label>
+  </div>`;
+
+/**
+ * What those who edit say of a piece written here besides its words, as the
+ * part of a form: `v` is what the form has, and `centre` says that the piece
+ * is the essay the corpus is drawn around, of which what opens on the corpus
+ * is its claims. The letter after its title is asked for beside the title.
+ */
+export function curationFields({ v, centre = false }) {
+  return html`<div class="curation">
+    <div class="curation__tone">
+      <label for="tone">Colour of its title</label>
+      <select id="tone" name="tone">
+        ${TONES.map(({ key, name }) => html`<option value="${key}" ${key === v.tone && raw("selected")}>${name}</option>`)}
+      </select>
+    </div>
+    <label for="annotation">${centre ? "Claims" : "Annotation"}</label>
+    <textarea id="annotation" name="annotation" rows="${centre ? 10 : 3}" maxlength="${MOST_ANNOTATION}">${v.annotation}</textarea>
+    ${curationChecks(v)}
+  </div>`;
+}
+
+/** what a piece has had said of it on the corpus, as a form begins with it */
+export const curationOf = (post) => ({
+  annotation: post?.annotation || "",
+  tone: post?.tone || "",
+  hand: post?.hand || "",
+  showTell: Boolean(post?.show_tell),
+  missionaria: Boolean(post?.missionaria),
+});
 
 /**
  * Writing something new, or with `post` changing what was written. With `on`,
- * the new post is a commentary on that one.
+ * the new post is a commentary on that one. It is written on a page of the
+ * size and proportions of a sheet of paper. `centre` says the piece is the
+ * essay the corpus is drawn around.
  */
-export function writePage({ session, post, on, values, error }) {
+export function writePage({ session, post, on, values, error, centre = false }) {
   const editing = Boolean(post);
-  const v = { title: post?.title || "", body: post?.body || "", summary: "", ...values };
+  const v = { title: post?.title || "", body: post?.body || "", summary: "", ...curationOf(post), ...values };
   const published = post?.status === "published";
-  const next = published ? (post.version || 0) + 1 : null;
-  const commentary = Boolean(on || post?.parent_id);
-  const heading = editing ? "Edit" : on ? "Write a commentary" : "Write";
+  const edits = may(session, "edit");
+  const heading = editing ? "Edit" : on ? "Write a commentary" : "New Piece";
   const back = editing ? `/p/${post.id}` : on ? `/p/${on.id}` : "/";
   return page({
     title: heading,
     session,
-    current: editing || on ? "" : "write",
-    scripts: ["editor"],
+    width: "desk",
+    current: "write",
+    scripts: ["markdown", "editor"],
     math: true,
     main: html`
-      <h1 class="page-title">${heading}</h1>
+      <h1 class="page-title page-title--form">${heading}</h1>
       ${on &&
       html`<p class="answers answers--lead">
-        On <a href="/p/${on.id}">${named(on.title, on.body)}</a> by ${on.author_name}
+        On <a href="/p/${on.id}">${named(on.title, on.body)}</a>
       </p>`}
       ${editing && answers(post)}
       <form
-        class="form compose"
+        class="form compose compose--piece"
         method="post"
         action="${editing ? `/p/${post.id}/edit` : "/write"}"
         data-editor="${editing ? `p${post.id}` : on ? `on${on.id}` : "new"}"
       >
         ${csrfField(session)} ${on && html`<input type="hidden" name="on" value="${on.id}" />`}
         ${editing && html`<input type="hidden" name="base" value="${post.updated_at}" />`} ${notice(error)}
-        <label for="title">Title</label>
-        <p class="hint">
-          ${commentary
-            ? "Optional, but with a title a commentary can be found and linked to by name."
-            : "Optional. With a title this is shown as an article; without one, as a short post."}
-        </p>
-        <input id="title" name="title" value="${v.title}" maxlength="200" autocomplete="off" />
+        <div class="compose__titles">
+          <div class="compose__title">
+            <label for="title">Title</label>
+            <input id="title" name="title" value="${v.title}" maxlength="200" autocomplete="off" />
+          </div>
+          ${edits &&
+          html`<div class="compose__hand">
+            <label for="hand">Superscript</label>
+            <input id="hand" name="hand" value="${v.hand}" maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          </div>`}
+        </div>
 
         <label for="body">Text</label>
-        <p class="hint">
-          Write or paste plainly: a blank line starts a new paragraph. Pictures can be dropped or pasted
-          straight into the text.
-        </p>
-        ${editorField({ body: v.body })}
+        ${editorField({ body: v.body, needed: false })}
 
-        ${published &&
+        ${edits && curationFields({ v, centre })}
+
+        ${config.versions &&
+        published &&
         html`<label for="summary">What changed</label>
-          <p class="hint">
-            Optional: a line for the history. Saving keeps this as version ${next}; the wording it replaces
-            stays there to be read, compared and restored.
-          </p>
           <input id="summary" name="summary" value="${v.summary}" maxlength="200" autocomplete="off" />`}
 
         <div class="compose__actions">
-          <button class="button" type="submit" name="status" value="published">
-            ${published ? `Save as version ${next}` : "Publish"}
-          </button>
-          <button class="button button--quiet" type="submit" name="status" value="draft">
-            ${published ? "Unpublish to draft" : "Save as draft"}
-          </button>
+          ${published
+            ? html`<button class="button" type="submit" name="status" value="published">Save</button>`
+            : html`<button class="button" type="submit" name="status" value="published">Publish</button>
+                <button class="button button--quiet" type="submit" name="status" value="draft">Save</button>`}
           <a class="compose__cancel" href="${back}">Cancel</a>
         </div>
       </form>
       ${editing &&
       html`<form class="compose__delete" method="post" action="/p/${post.id}/delete">
         ${csrfField(session)}
-        <button
-          class="link link--danger"
-          type="submit"
-          data-confirm="Delete this post, with its margin notes, replies and earlier versions, for good?${post.commentary_count > 0 &&
-          " The commentaries on it are kept."}"
-        >
-          Delete this post
-        </button>
+        <button class="link link--danger" type="submit" data-confirm="Delete this post for good?">Delete this post</button>
       </form>`}
     `,
   });
@@ -1000,7 +1231,7 @@ export function versionPage({ session, post, version }) {
       </div>
       <article class="post">
         <header class="post__head">
-          ${dateline(post)} ${answers(post)}
+          ${answers(post)}
           ${version.title && html`<h1 class="post__title">${version.title}</h1>`}
         </header>
         <div class="prose">${raw(renderPost(version.body, { initial: Boolean(version.title) }))}</div>
@@ -1087,199 +1318,18 @@ export function changesShown({ before, after, diff }) {
     ${textChanged && html`<div class="diff" data-typed>${blocks}</div>`}`;
 }
 
-/* ------------------------------------------------------------- the graph */
-
-/* drawn from the back forward, so the lines that say most lie on top */
-const EDGE_ORDER = ["address", "note", "wrote", "link", "commentary"];
-const ARROW = { commentary: "ink", link: "gold" };
-
-/* how far out from a node of the canon its ring is drawn */
-const HALO = 3.5;
-
-/* each mark the graph uses, drawn small for the key beneath it */
-const KEY_NODES = {
-  canon: html`<circle class="node__halo" cx="14" cy="8" r="7.5" /><circle cx="14" cy="8" r="4.5" />`,
-  article: html`<circle cx="14" cy="8" r="6.5" />`,
-  commentary: html`<circle cx="14" cy="8" r="5.5" />`,
-  post: html`<circle cx="14" cy="8" r="4" />`,
-  person: html`<rect x="9.5" y="3.5" width="9" height="9" transform="rotate(45 14 8)" />`,
-};
-const keyNode = (kind, label) =>
-  html`<li>
-    <svg viewBox="0 0 28 16" width="28" height="16" aria-hidden="true"><g class="node node--${kind === "canon" ? "article node--canon" : kind}">${KEY_NODES[kind]}</g></svg>
-    ${label}
-  </li>`;
-const keyEdge = (kind, label) =>
-  html`<li>
-    <svg viewBox="0 0 28 16" width="28" height="16" aria-hidden="true">
-      <line class="edge edge--${kind}" x1="1" y1="8" x2="${ARROW[kind] ? 21 : 27}" y2="8" ${ARROW[kind] && raw(`marker-end="url(#arrow-${ARROW[kind]})"`)} />
-    </svg>
-    ${label}
-  </li>`;
-
-/** the address of a view of the graph: around a node or not, with or without the people */
-function graphHref({ around = null, reach = "1", people = true }) {
-  const query = new URLSearchParams();
-  if (around) query.set("around", around);
-  if (around && reach !== "1") query.set("reach", reach);
-  if (!people) query.set("show", "articles");
-  const asked = query.toString();
-  return asked ? `/graph?${asked}` : "/graph";
-}
-
-const REACH_WORDS = [
-  ["1", "what it touches"],
-  ["2", "two steps out"],
-  ["3", "three steps"],
-  ["all", "everything connected"],
-];
-
-/**
- * The graph, or with `focus` ({ id, reach, of }) the part of it around one
- * node. `missing` says a node was asked for that the graph does not have.
- */
-export function graphPage({ session, graph, counts, people, focus = null, missing = false }) {
-  const edges = [...graph.edges].sort((a, b) => EDGE_ORDER.indexOf(a.kind) - EDGE_ORDER.indexOf(b.kind));
-  const line = (edge) =>
-    html`<line
-      class="edge edge--${edge.kind}"
-      data-from="${edge.from}"
-      data-to="${edge.to}"
-      x1="${edge.x1}"
-      y1="${edge.y1}"
-      x2="${edge.x2}"
-      y2="${edge.y2}"
-      ${ARROW[edge.kind] && raw(`marker-end="url(#arrow-${ARROW[edge.kind]})"`)}
-    />`;
-  const node = (each) => {
-    const person = each.kind === "person";
-    // the canon is gilt, and wears a fine ring a little way out from it
-    const halo = each.canon && !person;
-    return html`<a
-      class="node node--${each.kind}${each.canon && " node--canon"}${focus?.id === each.id && " is-centre"}"
-      href="${each.href}"
-      data-id="${each.id}"
-      transform="translate(${each.x} ${each.y})"
-      aria-label="${each.detail}"
-    >
-      <title>${each.detail}</title>
-      ${halo && html`<circle class="node__halo" r="${each.r + HALO}" />`}
-      ${person
-        ? html`<rect x="-5" y="-5" width="10" height="10" transform="rotate(45)" />`
-        : html`<circle r="${each.r}" />`}
-      <text y="${Math.round(each.r + (person ? 19 : halo ? 17 + HALO : 17))}" text-anchor="middle">${each.text}</text>
-    </a>`;
-  };
-  const view = (shown, href, label) =>
-    shown ? html`<strong>${label}</strong>` : html`<a href="${href}">${label}</a>`;
-  const empty = graph.nodes.length === 0;
-  const tally = [
-    plural(counts.posts, "post"),
-    plural(counts.commentaries, "commentary", "commentaries"),
-    counts.canon > 0 && `${counts.canon} in the canon`,
-    plural(counts.people, "member"),
-    plural(counts.notes, "note or reply", "notes and replies"),
-    plural(counts.links, "link between articles", "links between articles"),
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const centre = focus && graph.nodes.find((each) => each.id === focus.id);
-  const around = focus?.id ?? null;
-
-  return page({
-    title: centre ? `Graph · ${centre.label}` : "Graph",
-    session,
-    width: "full",
-    current: "graph",
-    scripts: ["graph"],
-    main: html`
-      <h1 class="page-title">Graph</h1>
-      <p class="lede">
-        Everything published here and how it hangs together: who wrote and annotated what, which pieces
-        answer or link to one another, and who has been talking to whom. Select anything to open it, or to
-        look only at what surrounds it.
-        ${counts.canon > 0 && html`What belongs to <a href="/canon">the canon</a> is drawn in gold.`}
-      </p>
-      ${missing && notice("That is not on the graph: it has nothing published to its name yet. Here is all of it.", "ok")}
-      ${empty
-        ? html`<p class="empty">Nothing has been published yet, so there is nothing to draw.</p>`
-        : html`
-            ${centre &&
-            html`<p class="graph__views graph__focus">
-              Around <a href="${centre.href}"><strong>${centre.label}</strong></a
-              >:
-              ${REACH_WORDS.map(
-                ([reach, words], i) =>
-                  html`${i > 0 && " · "}${view(focus.reach === reach, graphHref({ around, reach, people }), words)}`
-              )}
-              <span class="graph__all">
-                ${graph.nodes.length} of ${focus.of} shown · <a href="${graphHref({ people })}">The whole graph</a>
-              </span>
-            </p>`}
-            <p class="graph__views">
-              Show: ${view(people, graphHref({ around, reach: focus?.reach, people: true }), "Writing and people")}
-              ${around?.[0] !== "u" &&
-              html` · ${view(!people, graphHref({ around, reach: focus?.reach, people: false }), "Writing only")}`}
-            </p>
-            <div class="graph-frame">
-              <div class="graph" data-graph data-people="${people ? "1" : ""}">
-                <svg
-                  class="graph__sheet"
-                  viewBox="0 0 ${graph.width} ${graph.height}"
-                  role="group"
-                  aria-label="A graph of ${centre ? `what surrounds ${centre.label}` : tally}"
-                >
-                  <defs>
-                    <marker id="arrow-ink" class="arrow arrow--ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                      <path d="M0 1 L9 5 L0 9 z" />
-                    </marker>
-                    <marker id="arrow-gold" class="arrow arrow--gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                      <path d="M0 1 L9 5 L0 9 z" />
-                    </marker>
-                  </defs>
-                  <g>
-                    ${edges.map(line)}
-                  </g>
-                  <g>
-                    ${graph.nodes.map(node)}
-                  </g>
-                </svg>
-              </div>
-              <div class="graph__tools" role="group" aria-label="Zoom" data-graph-tools hidden>
-                <button class="tool" type="button" data-zoom="in" title="Zoom in" aria-label="Zoom in">+</button>
-                <button class="tool" type="button" data-zoom="out" title="Zoom out" aria-label="Zoom out">−</button>
-                <button class="tool" type="button" data-zoom="fit" title="Show all of it">Fit</button>
-              </div>
-              <div class="graph__card" data-graph-card aria-live="polite" hidden></div>
-            </div>
-            <p class="hint graph__how" data-graph-how hidden>
-              Drag to move about. Zoom with the buttons, a pinch, a double click, or by scrolling with
-              <kbd data-modifier>Ctrl</kbd> held.
-            </p>
-            <ul class="key" aria-label="Key">
-              ${counts.canon > 0 && keyNode("canon", html`<a href="/canon">The canon</a>`)}
-              ${keyNode("article", "Article")} ${keyNode("commentary", "Commentary")}
-              ${keyNode("post", "Short post")} ${people && keyNode("person", "Member")}
-              ${keyEdge("commentary", "answers")} ${keyEdge("link", "links to")}
-              ${people && keyEdge("wrote", "wrote")} ${people && keyEdge("note", "annotated")}
-              ${people && keyEdge("address", "replied to or tagged")}
-            </ul>
-            <p class="hint graph__tally">${tally}. The more is said about a piece, the larger it is drawn.</p>
-          `}
-    `,
-  });
-}
-
 /* ----------------------------------------------------- one member's page */
 
 export function memberPage({ session, person, posts, notes, main = false }) {
   const self = person.id === session.user.id;
   const written = (post) => html`<li>
-    <a class="index__title" href="/p/${post.id}">${named(post.title, post.body, 90)}</a>
-    <span class="index__meta">
-      ${raw(timeTag(post.published_at))}${post.parent_id &&
-      html` · a commentary on ${named(post.parent_title, post.parent_opening)}`}
-    </span>
+    <a class="index__title" href="/p/${post.id}"
+      >${post.kind === "work" ? html`<cite>${post.title}</cite>` : named(post.title, post.body, 90)}</a
+    >
+    ${(post.kind === "work" || post.parent_id) &&
+    html`<span class="index__meta">
+      ${post.kind === "work" ? byline(post) || "An antecedent" : html`A commentary on ${named(post.parent_title, post.parent_opening)}`}
+    </span>`}
   </li>`;
   const noted = (note) => html`<li>
     <a class="index__title" href="/p/${note.post_id}#note-${note.id}">${clip(note.body, 140)}</a>
@@ -1299,11 +1349,19 @@ export function memberPage({ session, person, posts, notes, main = false }) {
           ? html`Main admin, whose writing is <a href="/canon">the canon</a>`
           : standing(person)}${!person.active && " · no longer a member"} ·
         ${self ? "others tag you" : `tag ${person.name}`} by writing <code>@${person.username}</code>
-        ${self && html` · <a href="/account">Your account</a>`}
-        ${(posts.length > 0 || notes.length > 0) && html` · <a href="/graph?around=u${person.id}">On the graph</a>`}
+        ${self && html` · <a href="/account">Preferences</a>`}
+        ${(posts.length > 0 || notes.length > 0) && html` · <a href="/corpus?around=u${person.id}">In the corpus</a>`}
       </p>
+      ${config.messages &&
+      !self &&
+      person.active &&
+      html`<form class="member__write" method="post" action="/chat" data-start>
+        ${csrfField(session)}
+        <input type="hidden" name="who" value="${person.id}" />
+        <button class="button button--quiet" type="submit">Send ${person.name} a message</button>
+      </form>`}
 
-      <h2 class="section-title">Writing</h2>
+      <h2 class="section-title">Writing and works</h2>
       ${posts.length > 0
         ? html`<ul class="index">
             ${posts.map(written)}
@@ -1322,7 +1380,7 @@ export function memberPage({ session, person, posts, notes, main = false }) {
 
 /* --------------------------------------------------------------- members */
 
-export function membersPage({ session, members, error, issued, changed, values = {} }) {
+export function membersPage({ session, members, issued, changed }) {
   const admin = isAdmin(session);
   // only the main admin can hand that place on to another admin
   const iAmMain = members.some((member) => member.main && member.id === session.user.id);
@@ -1412,6 +1470,7 @@ export function membersPage({ session, members, error, issued, changed, values =
     width: "wide",
     current: "members",
     main: html`
+      <p class="rubric"><a href="/">Scribe</a></p>
       <h1 class="page-title">Members</h1>
       ${issued &&
       html`<div class="notice notice--ok" role="status">
@@ -1447,46 +1506,8 @@ export function membersPage({ session, members, error, issued, changed, values =
           ${members.map(row)}
         </tbody>
       </table>
-
-      <h2 class="section-title">Add a member</h2>
-      <form class="form form--inline" method="post" action="/members">
-        ${csrfField(session)} ${notice(error)}
-        <div>
-          <label for="name">Full name</label>
-          <input id="name" name="name" value="${values.name || ""}" maxlength="80" autocomplete="off" required />
-        </div>
-        <div>
-          <label for="new-username">Sign-in name</label>
-          <input
-            id="new-username"
-            name="username"
-            value="${values.username || ""}"
-            maxlength="32"
-            pattern="[A-Za-z0-9._\\-]{2,32}"
-            autocapitalize="none"
-            autocomplete="off"
-            spellcheck="false"
-            required
-          />
-        </div>
-        <button class="button" type="submit">Add</button>
-      </form>
-      <p class="hint">
-        A password is made for them and shown to you once, to pass on. They can change it after signing in.
-        Members can read, add margin notes, reply, tag each other by sign-in name and write commentaries,
-        with pictures, formulas and diagrams; only admins can start new posts. What the main admin publishes
-        is <a href="/canon">the canon</a>.
-      </p>
-      ${admin
-        ? html`<p class="hint">
-            A sub-admin is a member you have given some of what an admin can do: choose
-            <em>Make sub-admin</em> beside their name and tick what they are to have. Each can be given
-            something different, and it can be changed or taken back at any time.
-          </p>`
-        : html`<p class="hint">
-            You are here as a sub-admin who manages the members. Admins and other sub-admins are for an admin
-            to see to.
-          </p>`}
+      ${/* members are added from the server itself. While the list of those who are to be invited is out, it is reached from here */ ""}
+      ${config.invitations && admin && html`<p class="members__more"><a href="/invitations">Invitations</a></p>`}
     `,
   });
 }
@@ -1533,80 +1554,34 @@ export function permissionsPage({ session, member }) {
 
 /* --------------------------------------------------------------- account */
 
-/** one place the member was tagged, in words, as a link to it */
-function tagged(tag) {
-  const where = named(tag.post_title, tag.post_opening);
-  const link = tag.note_id ? `/p/${tag.post_id}#note-${tag.note_id}` : `/p/${tag.post_id}`;
-  const what = !tag.note_id ? "in" : tag.note_parent_id ? "in a reply on" : "in a margin note on";
-  return html`<li>
-    <a class="index__title" href="${link}">${tag.by_name} tagged you ${what} ${where}</a>
-    ${tag.note_body && html`<span class="index__quote">${clip(tag.note_body, 160)}</span>`}
-    <span class="index__meta">
-      ${raw(timeTag(tag.created_at, "stamp"))}${tag.fresh && html` <span class="tag tag--new">New</span>`}
-    </span>
-  </li>`;
-}
-
-/* the ways the pages can look, each shown on the account page as a leaf of itself */
+/* the lighting the pages can be read by, each shown as a leaf of itself */
 const LOOKS = [
-  { theme: "night", name: "Night", says: "Gold on black, for reading late." },
-  { theme: "paper", name: "Paper", says: "Ink on paper, as the front page is." },
+  { theme: "paper", name: "Paper" },
+  { theme: "night", name: "Night" },
 ];
 
-export function accountPage({ session, tags = [], sessions = [], error, said }) {
-  const { user } = session;
-  const look = user.theme || "night";
-  const elsewhere = sessions.filter((each) => each.id !== session.id);
-  const signedIn = (each) => {
-    const here = each.id === session.id;
-    return html`<li>
-      <span class="index__title">${each.agent || "A browser"}${here && html` <span class="tag tag--mark">This one</span>`}</span>
-      <span class="index__meta">
-        Signed in ${raw(timeTag(each.created_at))}${!here &&
-        each.seen_at &&
-        html` · last used ${raw(timeTag(each.seen_at, "stamp"))}`}
-      </span>
-      ${!here &&
-      html`<form class="index__act" method="post" action="/account/sessions/${each.id}/end">
-        ${csrfField(session)}
-        <button class="link" type="submit">Sign it out</button>
-      </form>`}
-    </li>`;
-  };
+/** a member's preferences: the lighting of the pages, and their password */
+const TEXTS = [
+  { key: "all", name: "Receive texts for all posts" },
+  { key: "some", name: "Receive texts for some posts" },
+];
+
+/** `texts` is what a member who came by an invitation has asked to be sent, or null for a member who did not */
+export function accountPage({ session, error, said, texts = null }) {
+  const look = session.user.theme || "paper";
   return page({
-    title: "Account",
+    title: "Preferences",
     session,
     current: "account",
     main: html`
-      <h1 class="page-title">${user.name}</h1>
-      ${said?.of === "account" && notice(said.text, "ok")}
-      <p class="hint">
-        Signed in as <code>${user.username}</code> · ${standing(user)} ·
-        <a href="${memberHref(user.username)}">Your page</a>
-      </p>
-      ${isSubAdmin(user) &&
-      html`<p class="hint">
-        As a sub-admin you have been given:
-        ${held(user)
-          .map((permission) => permission.name.toLowerCase())
-          .join(", ")}.
-        The <a href="/guide#admins">guide</a> says what each lets you do.
-      </p>`}
+      <h1 class="page-title page-title--preferences">Preferences</h1>
+      ${said && notice(said, "ok")}
 
-      <h2 class="section-title" id="tags">Where you were tagged</h2>
-      ${tags.length > 0
-        ? html`<ul class="index index--notes">
-            ${tags.map(tagged)}
-          </ul>`
-        : html`<p class="empty empty--notes">
-            Nowhere yet. Others tag you by writing <code>@${user.username}</code> in a note or a post.
-          </p>`}
-
-      <h2 class="section-title" id="looks">How the pages look</h2>
+      <h2 class="section-title" id="lighting">Lighting</h2>
       <form class="looks" method="post" action="/account/theme">
         ${csrfField(session)}
         ${LOOKS.map(
-          ({ theme, name, says }) =>
+          ({ theme, name }) =>
             html`<button
               class="look look--${theme}"
               type="submit"
@@ -1615,39 +1590,17 @@ export function accountPage({ session, tags = [], sessions = [], error, said }) 
               aria-pressed="${theme === look ? "true" : "false"}"
             >
               <span class="look__leaf" aria-hidden="true"><span class="look__word">Aa</span></span>
-              <span class="look__name">${name}${theme === look && html` <span class="tag tag--mark">Chosen</span>`}</span>
-              <span class="look__says">${says}</span>
+              <span class="look__name">${name}</span>
             </button>`
         )}
       </form>
-      <p class="hint">Kept with your account, so it is the same wherever you sign in.</p>
-
-      <h2 class="section-title" id="sessions">Where you are signed in</h2>
-      ${said?.of === "sessions" && notice(said.text, "ok")}
-      <ul class="index index--notes index--sessions">
-        ${sessions.map(signedIn)}
-      </ul>
-      ${elsewhere.length > 0
-        ? html`<form method="post" action="/account/sessions/end">
-            ${csrfField(session)}
-            <button class="button button--quiet" type="submit">Sign out everywhere else</button>
-          </form>`
-        : html`<p class="hint">Nowhere but here.</p>`}
-      <p class="hint">
-        A session ends when you sign out of it, and by itself after ${config.sessionDays} days. If one of
-        these is not yours, sign it out and change your password.
-      </p>
 
       <h2 class="section-title" id="password">Change password</h2>
-      <form class="form form--narrow" method="post" action="/account/password#password">
+      <form class="form form--narrow password" method="post" action="/account/password#password">
         ${csrfField(session)} ${notice(error)}
         <label for="current">Current password</label>
         <input id="current" name="current" type="password" autocomplete="current-password" required />
         <label for="new-password">New password</label>
-        <p class="hint">
-          At least ${config.minPasswordLength} characters, and not your name. A few unrelated words make a
-          good one. Changing it signs you out everywhere else.
-        </p>
         <input
           id="new-password"
           name="password"
@@ -1659,6 +1612,42 @@ export function accountPage({ session, tags = [], sessions = [], error, said }) 
         />
         <button class="button" type="submit">Change password</button>
       </form>
+
+      ${texts &&
+      html`<h2 class="section-title" id="texts">Texts</h2>
+        <form class="form form--narrow" method="post" action="/account/texts">
+          ${csrfField(session)}
+          <div class="options grants">
+            ${TEXTS.map(
+              ({ key, name }) =>
+                html`<label class="grant"
+                  ><input type="checkbox" name="texts" value="${key}" ${texts.wants.includes(key) && raw("checked")} />
+                  <span class="grant__name">${name}</span></label
+                >`
+            )}
+          </div>
+          <p class="hint">
+            Sent to the number you were invited by, when something is published. With neither ticked you are sent nothing.
+          </p>
+          <button class="button" type="submit">Save</button>
+        </form>`}
+    `,
+  });
+}
+
+/* -------------------------------------------------- a picture by itself */
+
+/** a picture opened by itself: on a page like any other, and so under its reader's mark */
+export function picturePage({ session, src }) {
+  return page({
+    title: "Picture",
+    session,
+    width: "wide",
+    main: html`
+      <figure class="alone">
+        <img src="${src}" alt="" />
+      </figure>
+      <p class="alone__back"><a href="/">Back to the first page</a></p>
     `,
   });
 }
@@ -1670,7 +1659,7 @@ export function errorPage({ status, message, session }) {
     <div class="lost">
       <p class="rubric">${status}</p>
       <h1 class="page-title">${message}</h1>
-      <p><a href="/">Back to the journal</a></p>
+      <p><a href="/">Back to the first page</a></p>
     </div>
   `;
   if (session) return page({ title: String(status), session, main });

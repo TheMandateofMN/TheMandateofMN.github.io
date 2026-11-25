@@ -1,8 +1,15 @@
 /*
- * The graph page. Without this the graph is a drawing whose every node is a
- * link. With it, the drawing can be zoomed and moved about, pointing at a
- * node picks out what it touches, and selecting one says what it is and
- * offers to open it or to show only what surrounds it.
+ * The corpus. Without this it is a drawing in which every title is a link.
+ * With it, the drawing can be zoomed and moved about, and selecting a title
+ * says what it is: its name, who made it and what kind of thing it is, and
+ * what is said of it on the corpus (a work's annotation, the claims of the
+ * essay at the centre), with the way to open it and, for those who may, to
+ * change it. Where the drawing has lines, pointing at a title picks out what
+ * it touches.
+ *
+ * Those who keep the corpus can also arrange it: the page then comes marked
+ * data-arrange, every title can be dragged to where it belongs (or moved with
+ * the arrow keys), and saving sends where each of them stands.
  */
 
 (() => {
@@ -14,9 +21,10 @@
   const frame = graph.parentElement;
   const tools = frame.querySelector("[data-graph-tools]");
   const card = frame.querySelector("[data-graph-card]");
-  const how = document.querySelector("[data-graph-how]");
 
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+  // the corpus is being arranged: its titles are there to be moved, not chosen
+  const arranging = graph.hasAttribute("data-arrange");
 
   /* ------------------------------------------- what a node touches */
 
@@ -25,9 +33,10 @@
   let chosen = null; // the node that has been selected, which stays picked out
 
   function pick(id) {
-    graph.classList.toggle("is-focused", Boolean(id));
+    // the rest falls back only where there are lines to say what a title touches
+    graph.classList.toggle("is-focused", Boolean(id) && edges.length > 0);
     for (const lit of graph.querySelectorAll(".is-on")) lit.classList.remove("is-on");
-    if (!id) return;
+    if (!id || !nodes.has(id)) return;
     nodes.get(id).classList.add("is-on");
     for (const edge of edges) {
       const { from, to } = edge.dataset;
@@ -57,15 +66,11 @@
   const CLOSEST = 8;
   const FURTHEST = 0.6;
   /* text is drawn fifteen units tall: below this many pixels to the unit it cannot be read */
-  const LEGIBLE = 0.62;
+  const LEGIBLE = 0.7;
   let view = null;
 
   graph.classList.add("is-live");
   tools.hidden = false;
-  if (how) {
-    how.hidden = false;
-    if (/Mac|iPhone|iPad/.test(navigator.platform)) how.querySelector("[data-modifier]").textContent = "⌘";
-  }
 
   /** the window that shows the whole drawing, centred, in the frame's own proportions */
   function whole() {
@@ -143,7 +148,7 @@
     if (pixelsPerUnit >= LEGIBLE) return show(all);
     const w = all.w * (pixelsPerUnit / LEGIBLE);
     const h = all.h * (pixelsPerUnit / LEGIBLE);
-    const centre = graph.querySelector(".node.is-centre");
+    const centre = graph.querySelector(".node.is-centre, .node[data-main]");
     const { x, y } = centre ? placeOf(centre) : { x: fullWidth / 2, y: fullHeight / 2 };
     show({ x: x - w / 2, y: y - h / 2, w, h });
   }
@@ -200,6 +205,8 @@
 
   graph.addEventListener("pointerdown", (event) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    // while the corpus is arranged, a title that is pressed is carried, and the drawing stays where it is
+    if (arranging && pointers.size === 0 && carry(event)) return;
     if (pointers.size === 0) {
       dragged = false;
       travelled = 0;
@@ -243,6 +250,7 @@
 
   frame.addEventListener("keydown", (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (arranging && nudge(event)) return;
     const step = 60;
     if (event.key === "+" || event.key === "=") zoomAt(1.5);
     else if (event.key === "-" || event.key === "_") zoomAt(1 / 1.5);
@@ -256,6 +264,88 @@
     event.preventDefault();
   });
 
+  /* ------------------------------------------------ arranging the corpus */
+
+  /*
+   * Where each title has been put, by its id. Places are kept from the essay
+   * at the centre, which stays where it is, so that they hold whatever the
+   * size of the sheet comes to be.
+   */
+  const [originX, originY] = (graph.dataset.origin || "0 0").split(" ").map(Number);
+  const arrangeForm = frame.parentElement.querySelector("form[data-arrange-form]");
+  let moved = false;
+  let carried = null;
+
+  const movable = (node) => node && node.dataset.id[0] === "p" && !node.hasAttribute("data-main");
+
+  function put(node, x, y) {
+    node.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    moved = true;
+  }
+
+  /** begins carrying the title under a pointer, if there is one that can be moved; says whether it did */
+  function carry(event) {
+    const node = event.target.closest?.(".node");
+    if (!movable(node)) return false;
+    const box = sheet.getBoundingClientRect();
+    carried = { id: event.pointerId, node, x: event.clientX, y: event.clientY, scale: view.w / box.width };
+    node.classList.add("is-carried");
+    // drawn last, so that it passes over the others
+    node.parentNode.append(node);
+    event.preventDefault();
+    return true;
+  }
+
+  window.addEventListener("pointermove", (event) => {
+    if (!carried || event.pointerId !== carried.id) return;
+    const { x, y } = placeOf(carried.node);
+    put(carried.node, x + (event.clientX - carried.x) * carried.scale, y + (event.clientY - carried.y) * carried.scale);
+    carried.x = event.clientX;
+    carried.y = event.clientY;
+  });
+  for (const type of ["pointerup", "pointercancel"]) {
+    window.addEventListener(type, (event) => {
+      if (!carried || event.pointerId !== carried.id) return;
+      carried.node.classList.remove("is-carried");
+      carried = null;
+    });
+  }
+
+  /** moves the title that has the keyboard by a step with the arrow keys, a small one with Shift held; says whether it did */
+  function nudge(event) {
+    const node = document.activeElement?.closest?.(".node");
+    if (!movable(node)) return false;
+    const step = event.shiftKey ? 2 : 16;
+    const by = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+    if (!by) return false;
+    const { x, y } = placeOf(node);
+    put(node, x + by[0], y + by[1]);
+    event.preventDefault();
+    return true;
+  }
+
+  if (arranging && arrangeForm) {
+    graph.classList.add("is-arranging");
+    arrangeForm.addEventListener("submit", () => {
+      // every title is kept where it is seen to stand, the ones that were not touched as well
+      const places = [];
+      for (const [id, node] of nodes) {
+        if (!movable(node)) continue;
+        const { x, y } = placeOf(node);
+        places.push(`${id}:${(x - originX).toFixed(1)},${(y - originY).toFixed(1)}`);
+      }
+      arrangeForm.elements.places.value = places.join(" ");
+      moved = false;
+    });
+    // leaving with titles moved and not saved is asked about first
+    window.addEventListener("beforeunload", (event) => {
+      if (moved) event.preventDefault();
+    });
+    // a title is not opened from here, nor the drawing zoomed by pressing twice on one
+    graph.addEventListener("click", (event) => event.preventDefault(), true);
+    return;
+  }
+
   /* --------------------------------------------------- selecting a node */
 
   function element(tag, className, text) {
@@ -267,32 +357,31 @@
 
   /** selects a node, or with null lets go of the one selected */
   function choose(id) {
-    chosen = id;
-    pick(id);
-    card.hidden = !id;
+    chosen = id && nodes.has(id) ? id : null;
+    pick(chosen);
+    card.hidden = !chosen;
     card.replaceChildren();
-    if (!id) return;
+    if (!chosen) return;
+    id = chosen;
 
     const node = nodes.get(id);
-    // "Title — an article by Someone · 3 notes and replies · 1 commentary"
-    const [what, ...more] = node.getAttribute("aria-label").split(" · ");
-    const [name, kind] = what.split(" — ");
-    const title = element("p", "graph__card-what");
-    title.append(element("strong", "", name));
-    if (kind) title.append(` — ${kind}`);
-    card.append(title);
-    if (more.length > 0) card.append(element("p", "graph__card-more", more.join(" · ")));
+    const name = node.dataset.name;
+    const href = node.getAttribute("href");
+    const work = node.classList.contains("node--work");
 
+    // its title, with the ways on from it on the same line
+    const top = element("div", "graph__card-top");
+    const title = element("p", "graph__card-what");
+    title.append(element(work ? "cite" : "strong", "", name));
     const links = element("p", "graph__card-links");
-    const open = element("a", "", id[0] === "u" ? "Open their page" : "Open");
-    open.href = node.getAttribute("href");
-    links.append(open);
-    if (!node.classList.contains("is-centre")) {
-      const around = element("a", "", "Show only what surrounds it");
-      const people = graph.dataset.people || id[0] === "u";
-      around.href = `/graph?around=${id}${people ? "" : "&show=articles"}`;
-      links.append(around);
-    }
+    const link = (label, to) => {
+      const made = element("a", "", label);
+      made.href = to;
+      links.append(made);
+    };
+    link(id[0] === "u" ? "Open their page" : "Open", href);
+    // those who keep the corpus go from a piece on it back to the form it was written or added with
+    if (node.dataset.edit) link("Edit", node.dataset.edit);
     const close = element("button", "link link--quiet", "Close");
     close.type = "button";
     close.addEventListener("click", () => {
@@ -300,8 +389,32 @@
       node.focus();
     });
     links.append(close);
-    card.append(links);
+    top.append(title, links);
+    card.append(top);
+
+    // under it, for a work, who made it and what kind of thing it is; for anything else, what the node says of itself
+    const said = node.getAttribute("aria-label") || "";
+    const more = work ? node.dataset.by : (said.startsWith(name) ? said.slice(name.length) : said).replace(/^ [—·] /, "");
+    if (more) card.append(element("p", "graph__card-more", more));
+
+    // what is said of it on the corpus, which the page keeps folded away until its title is chosen
+    const kept = [...frame.querySelectorAll("template[data-graph-note]")].find((each) => each.dataset.graphNote === id);
+    if (kept) {
+      const note = element("div", "graph__card-note");
+      note.append(kept.content.cloneNode(true));
+      card.append(note);
+    }
   }
+
+  // a page that links to a piece's place on the corpus (/corpus#p12) arrives with it chosen
+  function arrive() {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!/^p\d+$/.test(id) || !nodes.has(id)) return;
+    choose(id);
+    bringIntoView(nodes.get(id));
+  }
+  arrive();
+  window.addEventListener("hashchange", arrive);
 
   graph.addEventListener(
     "click",

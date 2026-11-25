@@ -18,13 +18,13 @@
 export const PERMISSIONS = [
   {
     key: "write",
-    name: "Start posts",
-    says: "Start a new post in the journal. Without this a member can only answer one, with a commentary.",
+    name: "Scribe",
+    says: "Write a new piece or add an antecedent to the corpus, publish it themselves, and answer a piece with a commentary. Without this or the next, a member adds nothing to the corpus.",
   },
   {
     key: "edit",
-    name: "Edit the journal",
-    says: "See everyone’s drafts, and change, unpublish, restore or delete any post or commentary, the canon included.",
+    name: "Edit what is written",
+    says: "See what is not yet published, and change, publish, take back or delete any piece, the canon included. Say how far along a piece is and put the pieces in order. Say what the corpus says of a piece: its annotation, its colour, whether it is missionaria. Drag the titles of the corpus to where they belong, and choose the essay at its centre.",
   },
   {
     key: "moderate",
@@ -34,7 +34,7 @@ export const PERMISSIONS = [
   {
     key: "members",
     name: "Manage members",
-    says: "Add members, issue them new passwords, and remove or restore them. Admins and other sub-admins are out of their reach.",
+    says: "Issue members new passwords, and remove or restore them. Admins and other sub-admins are out of their reach.",
   },
   {
     key: "projects",
@@ -67,6 +67,13 @@ export function can(user, key) {
   if (!KEYS.includes(key)) throw new RangeError(`There is no permission called "${key}".`);
   return Boolean(user) && (user.role === "admin" || permissionKeys(user.permissions).includes(key));
 }
+
+/**
+ * Whether a member has the page the forum is kept from, Scribe, which lists every piece and leads
+ * to the members: an admin, or a sub-admin who publishes, edits or manages the members. Everyone
+ * else has the corpus, which is theirs to read.
+ */
+export const scribes = (user) => ["write", "edit", "members"].some((key) => can(user, key));
 
 /** a member who is not an admin but has been given some of what an admin may do */
 export const isSubAdmin = (user) => user.role !== "admin" && permissionKeys(user.permissions).length > 0;

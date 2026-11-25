@@ -6,18 +6,46 @@
 
 import { csrfMatches } from "./auth.mjs";
 import { rooms } from "./chat.mjs";
-import { mentions } from "./db.mjs";
+import { config } from "./config.mjs";
+import { users } from "./db.mjs";
 import { HttpError, readForm, redirect, wantsJson } from "./http.mjs";
+import { paced } from "./pace.mjs";
 import { can } from "./permissions.mjs";
+import { subscriptions } from "./push.mjs";
 
 export const NOT_FOUND = "That page could not be found.";
+
+/**
+ * Whether a request is for something to read: a page, or a part of one. What
+ * a page's own script asks for as it works (suggestions, previews, the open
+ * line of a conversation, the reader's mark) is not, and pictures are counted
+ * apart, where they are sent.
+ */
+function isReading({ req, url }) {
+  if (req.method !== "GET") return false;
+  const accept = String(req.headers.accept || "");
+  if (accept.includes("application/json") || accept.includes("text/event-stream")) return false;
+  if (/^\/(media|mark|tex)\//.test(url.pathname) || url.pathname.endsWith(".json")) return false;
+  const dest = req.headers["sec-fetch-dest"];
+  return !dest || dest === "document" || dest === "empty";
+}
+
+/** refuses, for as long as `wait` says, a member who is asking faster than anyone reads */
+export function slowDown(wait) {
+  if (wait === null || !config.pace) return;
+  throw new HttpError(429, "Pages are being asked for faster than anyone reads. Wait a little and carry on.", {
+    "Retry-After": String(wait),
+  });
+}
 
 /** everything past the sign-in page needs a session */
 export function member(ctx) {
   if (ctx.session) {
-    // shown in the menu of every page: how many new tags await the member, and how much unread talk
-    ctx.session.tagged = mentions.unseenCount(ctx.session.user.id);
-    ctx.session.unread = rooms.unread(ctx.session.user.id);
+    if (isReading(ctx)) slowDown(paced(ctx.session.user.id));
+    // where there are conversations, the menu of every page says how much of the talk is unread
+    ctx.session.unread = config.messages ? rooms.unread(ctx.session.user.id) : 0;
+    // and whether this sign-in has notifications turned on, which the script that asks for them goes by
+    ctx.session.pushed = config.notifications && subscriptions.on(ctx.session.tokenHash);
     return;
   }
   // the page's own script is told plainly, so it can say so and keep what was being written
@@ -33,6 +61,29 @@ export function member(ctx) {
 
 export const isAdmin = (ctx) => ctx.session.user.role === "admin";
 
+/** whether the member asking is the main admin */
+export const isMainAdmin = (ctx) => users.main()?.id === ctx.session.user.id;
+
+/**
+ * A gate: the main admin, and nobody else. What stands behind it is the main
+ * admin's own (the chats sent to from here, the texts about what is
+ * published), and to anyone else, an admin included, it is not there.
+ */
+export function mainAdmin(ctx) {
+  if (member(ctx)) return true;
+  if (!isMainAdmin(ctx)) throw new HttpError(404, NOT_FOUND);
+}
+
+/**
+ * A gate: the admins, and nobody else. What stands behind it (who is to be
+ * invited, and how they are reached) is not there to a member, nor to a
+ * sub-admin whatever they have been given.
+ */
+export function admins(ctx) {
+  if (member(ctx)) return true;
+  if (!isAdmin(ctx)) throw new HttpError(404, NOT_FOUND);
+}
+
 /** what only an admin may do, whatever a sub-admin has been given: naming the main admin, making sub-admins */
 export function admin(ctx) {
   if (member(ctx)) return true;
@@ -41,6 +92,15 @@ export function admin(ctx) {
 
 /** whether the member asking may do what a permission allows: an admin, or a sub-admin who holds it */
 export const may = (ctx, permission) => can(ctx.session.user, permission);
+
+/** whether the member asking adds to the corpus: the admins, and the sub-admins who publish or edit. Nobody else does */
+export const publishes = (ctx) => may(ctx, "write") || may(ctx, "edit");
+
+/** a gate: those who add to the corpus, a piece of their own or a work made elsewhere */
+export function publisher(ctx) {
+  if (member(ctx)) return true;
+  if (!publishes(ctx)) throw new HttpError(403, "Only those who keep the corpus can add to it.");
+}
 
 /** stands before what is for the admins and for the sub-admins given that permission */
 export const allowed = (permission) =>

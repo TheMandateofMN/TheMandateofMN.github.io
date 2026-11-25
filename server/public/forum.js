@@ -3,8 +3,8 @@
  * post and margin notes are still listed with the passages they quote. With
  * it, quoted passages are found and marked in the text, a selection can be
  * turned into a note, members and articles are offered by name while writing,
- * and dates are shown in the reader's own time. The editor and the graph have
- * scripts of their own, editor.js and graph.js.
+ * and dates are shown in the reader's own time. The editor and the corpus have
+ * scripts of their own, editor.js and corpus.js.
  */
 
 (() => {
@@ -23,12 +23,50 @@
         : date.toLocaleDateString("en-GB", DAY);
   }
 
+  /* ------------------------------------------------ the reader's mark */
+
+  // The page comes with its reader's mark laid over it (see .mark in forum.css). Should it be
+  // taken off, or changed so as not to show, it is put back as it came.
+  const mark = document.querySelector("body > .mark");
+  if (mark) {
+    const came = mark.cloneNode(false);
+    let current = mark;
+    const whole = () =>
+      current.parentNode === document.body &&
+      ["class", "style", "hidden"].every((name) => current.getAttribute(name) === came.getAttribute(name));
+    new MutationObserver(() => {
+      if (whole()) return;
+      current.remove();
+      current = came.cloneNode(false);
+      document.body.append(current);
+    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style", "hidden"] });
+  }
+
   /* ----------------------------------------------------- confirmations */
 
   document.addEventListener("submit", (event) => {
     const message = event.submitter?.dataset.confirm;
     if (message && !window.confirm(message)) event.preventDefault();
   });
+
+  /* ------------------------------------------------------------ copying */
+
+  // what was just issued and is shown once, such as a link to pass on, copied whole
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    const from = document.getElementById(button.dataset.copy);
+    if (!from || !navigator.clipboard) continue;
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(from.textContent.trim());
+        button.textContent = "Copied";
+      } catch {
+        // the browser would not: it is selected instead, to be copied by hand
+        window.getSelection()?.selectAllChildren(from);
+        button.hidden = true;
+      }
+    });
+  }
 
   /* ----------------------------------------------------------- replies */
 
@@ -54,32 +92,6 @@
     }
   }
 
-  /* ----------------------------------------------- opening a text file */
-
-  const picker = document.querySelector("input[type=file][data-load-into]");
-  if (picker) {
-    const body = document.getElementById(picker.dataset.loadInto);
-    const title = document.getElementById(picker.dataset.titleInto);
-    picker.addEventListener("change", async () => {
-      const file = picker.files[0];
-      picker.value = "";
-      if (!file) return;
-      if (file.size > 900 * 1024) return window.alert("That file is too large to open here.");
-      if (body.value.trim() && !window.confirm("Replace what is in the box with this file?")) return;
-      let text = (await file.text()).replace(/\r\n?/g, "\n").replace(/^\uFEFF/, "");
-      // a file that opens on a top-level heading brings its own title
-      const heading = /^\s*# +(.+?)\s*#*\n+/.exec(text);
-      if (heading && title && !title.value.trim()) {
-        title.value = heading[1];
-        text = text.slice(heading[0].length);
-      }
-      body.value = text;
-      // the editor counts, previews and keeps a copy on hearing of a change
-      body.dispatchEvent(new Event("input", { bubbles: true }));
-      body.focus();
-    });
-  }
-
   /* ------------------------------- tagging members and naming articles */
 
   /*
@@ -87,8 +99,7 @@
    * "[[" offers the articles; choosing one writes "@name" or "[[Title]]".
    * Either can also simply be typed out.
    */
-  const boxes = document.querySelectorAll("textarea[data-suggest]");
-  if (boxes.length > 0) {
+  {
     const nothing = { people: [], articles: [] };
     let known;
     const load = () =>
@@ -228,12 +239,17 @@
     // keep the caret in the box when the list is pressed
     list.addEventListener("pointerdown", (event) => event.preventDefault());
 
-    for (const box of boxes) {
-      box.addEventListener("input", () => offer(box));
-      box.addEventListener("click", () => offer(box));
-      box.addEventListener("blur", close);
-      box.addEventListener("keydown", (event) => {
-        if (!open || open.box !== box) return;
+    // Boxes are listened for from the page as a whole, since one may arrive after it was made
+    // (a conversation opened beside it). The keys are heard on the way down, so that while the
+    // list is open they are its own before they are the box's.
+    const boxOf = (event) => (event.target instanceof HTMLTextAreaElement && event.target.dataset.suggest ? event.target : null);
+    document.addEventListener("input", (event) => boxOf(event) && offer(event.target));
+    document.addEventListener("click", (event) => boxOf(event) && offer(event.target));
+    document.addEventListener("focusout", (event) => boxOf(event) && close());
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (!open || open.box !== event.target) return;
         const last = open.items.length - 1;
         if (event.key === "ArrowDown") mark(open.index === last ? 0 : open.index + 1);
         else if (event.key === "ArrowUp") mark(open.index === 0 ? last : open.index - 1);
@@ -241,8 +257,9 @@
         else if (event.key === "Escape") close();
         else return;
         event.preventDefault();
-      });
-    }
+      },
+      true
+    );
   }
 
   /* ------------------------------------------------------ margin notes */

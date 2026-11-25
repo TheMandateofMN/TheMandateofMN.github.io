@@ -1,27 +1,34 @@
 /*
- * The Gesserit forum: a members' journal.
+ * The Gesserit forum: a corpus, and the members who read it.
  *
- * Every member can read what is published in the journal, add margin notes to
- * it, reply to each other's notes, tag one another with @name, and answer a
- * post at length with a commentary of their own. Only admins can start a new
- * post, edit or delete what others wrote, and manage who the members are.
- * Articles link to one another with [[Title]], and the graph page draws how
- * all of it hangs together.
+ * What a member comes to is the corpus (src/routes-corpus.mjs): everything
+ * published here drawn about the essay at its centre. It has two layers. The
+ * succession is what is written here; the antecedents are the works it
+ * descends from, books and passages and films, each of them a post of
+ * another kind. Every member can read what is published, add margin notes
+ * to what is written here, reply to each other's notes and tag one another
+ * with @name. Articles link to one another with [[Title]].
+ *
+ * The corpus is added to by those who keep it and by nobody else: the
+ * admins, and the sub-admins given that. They have a page of their own for
+ * it, Scribe, which lists every piece in two tables, the succession and the
+ * antecedents, each in the order its keeper puts it in and each piece with
+ * how far along it is, and which leads to the members.
  *
  * One of the admins is the main admin. What that admin publishes is the
- * canon: it has a page of its own and is drawn in gold on the graph.
+ * canon, which has a page of its own.
  *
- * Posts take pictures, formulas and LaTeX diagrams. Every wording a post is
- * published with is kept as a numbered version, which anyone who can read
- * the post can read, compare with another, and its author or an admin
- * restore. A note can be reworded by its author, and keeps what it said.
+ * Posts take pictures, formulas and LaTeX diagrams. A note can be reworded
+ * by its author, and keeps what it said.
  *
- * Besides the journal there are conversations (src/routes-chat.mjs): a room
- * for everyone, conversations between chosen members, and a room for each
- * project. And there are projects (src/routes-projects.mjs): sets of pages
- * that the members chosen for them write together, where every saving is
- * kept and changes made at the same time are joined. The guide page tells
- * members how all of it is used.
+ * Some parts are put away for now, and each comes back with a switch (see
+ * src/config.mjs): conversations (src/routes-chat.mjs), which are a room for
+ * everyone, conversations between chosen members and a room for each
+ * project, with the notifications of them on a member's devices; projects
+ * (src/routes-projects.mjs), sets of pages that the members chosen for them
+ * write together; the earlier wordings of a piece, each of which is still
+ * kept as a numbered version but is not shown; and the list of those who are
+ * to be invited (src/routes-numbers.mjs).
  *
  * gesserit.org itself is a static page on GitHub Pages. This server is meant
  * to sit beside it on a subdomain (forum.gesserit.org) and holds everything
@@ -36,7 +43,7 @@
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { config, REPO_ROOT, SERVER_ROOT } from "./src/config.mjs";
-import { mentions, notes, posts, revisions, users } from "./src/db.mjs";
+import { adminLog, notes, posts, revisions, users } from "./src/db.mjs";
 import { changes } from "./src/diff.mjs";
 import {
   burnPassword,
@@ -44,13 +51,11 @@ import {
   createSession,
   csrfMatches,
   destroySession,
-  destroySessionOf,
   destroySessionsFor,
   findSession,
   generatePassword,
   hashPassword,
   passwordProblem,
-  sessionsFor,
   signInBlocked,
   signInCounts,
   signInFailed,
@@ -75,50 +80,64 @@ import {
   wantsJson,
 } from "./src/http.mjs";
 import { hangUp } from "./src/chat.mjs";
-import { admin, allowed, field, form, isAdmin, may, member, NOT_FOUND, numericId } from "./src/gate.mjs";
-import { layout } from "./src/graph.mjs";
-import { isSubAdmin, permissionKeys } from "./src/permissions.mjs";
+import { admin, allowed, field, form, isAdmin, isMainAdmin, may, member, NOT_FOUND, numericId, publisher, publishes, slowDown } from "./src/gate.mjs";
+import { isSubAdmin, permissionKeys, scribes } from "./src/permissions.mjs";
+import { projects } from "./src/projects.mjs";
 import { chatRoutes } from "./src/routes-chat.mjs";
+import { corpusRoutes, editWork, saveWork } from "./src/routes-corpus.mjs";
 import { projectRoutes } from "./src/routes-projects.mjs";
-import { INERT, keep, sendMedia } from "./src/media.mjs";
-import { renderPost, typeset } from "./src/render.mjs";
+import { numberRoutes, textsOf } from "./src/routes-numbers.mjs";
+import { pushRoutes } from "./src/routes-push.mjs";
+import { relayRoutes } from "./src/routes-relay.mjs";
+import * as relay from "./src/relay.mjs";
+import { markNamed, markNote, markSvg, markWords } from "./src/mark.mjs";
+import { INERT, keep, pictureKept, sendMedia } from "./src/media.mjs";
+import { lapse } from "./src/numbers.mjs";
+import { paced, sweepPace } from "./src/pace.mjs";
+import { editable, renderPost, typeset } from "./src/render.mjs";
 import { find } from "./src/search.mjs";
-import { canDraw, svgOf } from "./src/tex.mjs";
-import { guidePage } from "./src/views-guide.mjs";
+import { readStatus } from "./src/status.mjs";
+import { svgOf } from "./src/tex.mjs";
 import {
   accountPage,
   canonPage,
   changesPage,
   errorPage,
-  graphPage,
   historyPage,
-  journalPage,
   memberPage,
   membersPage,
   permissionsPage,
+  picturePage,
   postPage,
+  scribePage,
   searchPage,
   signInPage,
   versionPage,
   writePage,
 } from "./src/views.mjs";
-import { graphData, indexLinks, neighbourhood, noteSaved, postSaved, prepare } from "./src/weave.mjs";
+import { indexLinks, noteSaved, postSaved, prepare } from "./src/weave.mjs";
+import { readCuration } from "./src/works.mjs";
 
 const router = new Router();
 
 const wrote = (ctx, post) => post.author_id === ctx.session.user.id;
 
-/** a post the current member may see: a draft is for its author, the admins and the sub-admins who edit the journal */
+/** a post the current member may see: one that is not published is for whoever is writing it, the admins and the sub-admins who edit */
 function visiblePost(ctx, id = numericId(ctx.params.id)) {
   const post = posts.byId(id);
   if (!post || (post.status === "draft" && !may(ctx, "edit") && !wrote(ctx, post))) throw new HttpError(404, NOT_FOUND);
   return post;
 }
 
-/** a post the current member may change or delete: their own, or any for an admin or a sub-admin who edits the journal */
+/**
+ * A post the current member may change or delete: any, for an admin or a
+ * sub-admin who edits; and their own, for those who publish. The corpus is
+ * kept by those who keep it, and nobody else changes anything in it.
+ */
 function ownPost(ctx) {
   const post = visiblePost(ctx);
-  if (!may(ctx, "edit") && !wrote(ctx, post)) throw new HttpError(403, "Only its author or an admin can change this.");
+  if (may(ctx, "edit")) return post;
+  if (!publishes(ctx) || !wrote(ctx, post)) throw new HttpError(403, "Only those who keep the corpus can change this.");
   return post;
 }
 
@@ -127,7 +146,18 @@ const aroundPost = (post) => ({
   threads: notes.threads(post.id),
   commentaries: posts.commentaries(post.id),
   linkedFrom: posts.linkedFrom(post.id),
+  centre: posts.centre()?.id === post.id,
 });
+
+/** an invitation not taken up in its time is let go of, and its link stops working */
+function lapseInvitations() {
+  try {
+    const lapsed = lapse();
+    if (lapsed > 0) console.log(`${new Date().toISOString()} ${lapsed} invitation(s) lapsed without being taken up`);
+  } catch (error) {
+    console.error("could not let the old invitations go:", error.message);
+  }
+}
 
 /* ---------------------------------------------------------------- sign in */
 
@@ -168,21 +198,55 @@ router.post("/logout", member, form, (ctx) => {
   redirect(ctx.res, "/login", { "Set-Cookie": sessionCookie("", { clear: true }) });
 });
 
-/* ---------------------------------------------------------------- journal */
+/* ----------------------------------------------------------------- scribe */
 
-router.get("/", member, async (ctx) => {
-  const pageCount = Math.max(1, Math.ceil(posts.publishedCount() / config.postsPerPage));
-  const asked = Number.parseInt(ctx.url.searchParams.get("page"), 10);
-  const pageNumber = Math.min(pageCount, Math.max(1, Number.isFinite(asked) ? asked : 1));
-  const published = posts.published({ limit: config.postsPerPage, offset: (pageNumber - 1) * config.postsPerPage });
-  // those who may edit the journal see every draft, other members their own
-  const drafts = pageNumber === 1 ? posts.drafts(may(ctx, "edit") ? null : ctx.session.user.id) : [];
-  // short posts are shown whole here, diagrams and all
-  await Promise.all([...published, ...drafts].map((post) => prepare(post.body)));
-  send(ctx.res, 200, journalPage({ session: ctx.session, posts: published, drafts, pageNumber, pageCount }));
+/**
+ * Where the corpus is kept from: every piece there is, written here or made
+ * elsewhere, with how far along each is and the way to change it. It is for
+ * those who keep the forum. Everyone else is taken to the corpus itself,
+ * which is what they come for.
+ */
+router.get("/", member, (ctx) => {
+  const { user } = ctx.session;
+  if (!scribes(user)) return redirect(ctx.res, "/corpus");
+  send(
+    ctx.res,
+    200,
+    scribePage({
+      session: ctx.session,
+      // what is not published is for those who edit; anyone else here sees their own of it
+      pieces: posts.ledger({ own: may(ctx, "edit") ? null : user.id }),
+      sends: isMainAdmin(ctx),
+      projects: config.projects ? { mine: projects.of(user.id), open: projects.openTo(user.id).length } : null,
+    })
+  );
 });
 
-/** what a few words find in the journal, its margins and the projects the member may read */
+/** says how far along a piece is, or publishes it, from the list of every piece */
+router.post("/p/:id/status", member, form, (ctx) => {
+  const post = ownPost(ctx);
+  const chosen = readStatus(field(ctx, "status"));
+  if (!chosen) throw new HttpError(400, "There is no such status.");
+  if (chosen.status !== post.status || (chosen.stage && chosen.stage !== post.stage)) {
+    posts.setStatus(post.id, chosen);
+    // publishing it, or taking it back, changes what links to it and whom it tags
+    if (chosen.status !== post.status) postSaved(post.id, { by: ctx.session.user.id });
+  }
+  if (wantsJson(ctx.req)) return sendJson(ctx.res, 200, { ok: true });
+  redirect(ctx.res, "/");
+});
+
+/** puts the pieces of one of the two tables in the order given: `ids`, the first first */
+router.post("/order", allowed("edit"), form, (ctx) => {
+  const ids = field(ctx, "ids").split(/[\s,]+/).filter(Boolean);
+  if (ids.length === 0 || ids.length > 5000 || new Set(ids).size !== ids.length || ids.some((id) => !/^[1-9]\d{0,14}$/.test(id)))
+    throw new HttpError(400, "That order could not be read.");
+  posts.arrange(ids.map(Number));
+  if (wantsJson(ctx.req)) return sendJson(ctx.res, 200, { ok: true });
+  redirect(ctx.res, "/");
+});
+
+/** what a few words find in what is written here, its margins and, where there are projects, those the member may read */
 router.get("/search", member, (ctx) => {
   const q = (ctx.url.searchParams.get("q") || "").replace(/\s+/g, " ").trim().slice(0, config.maxSearchLength);
   send(ctx.res, 200, searchPage({ session: ctx.session, q, found: q ? find(q, ctx.session.user) : null }));
@@ -191,7 +255,7 @@ router.get("/search", member, (ctx) => {
 /** a post's page, once its diagrams are drawn */
 async function showPost(ctx, post, extra = {}, status = 200) {
   await prepare(post.body);
-  send(ctx.res, status, postPage({ session: ctx.session, post, ...aroundPost(post), ...extra }));
+  send(ctx.res, status, postPage({ session: ctx.session, post, ...aroundPost(post), numbers: isMainAdmin(ctx), ...extra }));
 }
 
 router.get("/p/:id", member, (ctx) => showPost(ctx, visiblePost(ctx)));
@@ -222,6 +286,8 @@ const noteError = (body, what) =>
 router.post("/p/:id/notes", member, form, (ctx) => {
   const post = visiblePost(ctx);
   if (post.status !== "published") throw new HttpError(403, "Notes open once this is published.");
+  // an antecedent's page is what the corpus says of it, and has no margin
+  if (post.kind === "work") throw new HttpError(403, "An antecedent has no margin to write in.");
 
   const parent = ctx.form.has("parent") ? threadFor(post, field(ctx, "parent")) : null;
   const body = field(ctx, "body");
@@ -278,47 +344,60 @@ router.post("/notes/:id/remove", member, form, (ctx) => {
 
 /* ---------------------------------------------------------------- writing */
 
-function readPost(ctx) {
+/**
+ * What the form says of a piece written here, to be saved over `post` or as
+ * a new one. What the corpus says of a piece is read only from those who
+ * edit, whose it is to say. A piece needs a title or some words: one that is
+ * only a title is one that has not been started.
+ */
+function readPost(ctx, post = null) {
+  const curation = may(ctx, "edit") ? readCuration((name) => ctx.form.get(name), { work: false }) : null;
   const values = {
     title: field(ctx, "title").replace(/\s+/g, " "),
     // browsers send a form's line breaks as CR LF; kept plain, so one wording compares with the next
     body: (ctx.form.get("body") || "").replace(/\r\n?/g, "\n"),
     summary: field(ctx, "summary").replace(/\s+/g, " ").slice(0, 200),
+    ...curation?.values,
   };
+  const written = Boolean(values.body.trim());
   const status = ctx.form.get("status") === "draft" ? "draft" : "published";
-  const error = !values.body.trim()
-    ? "There is nothing to save yet."
-    : values.title.length > 200
-      ? "Keep the title under 200 characters."
-      : null;
-  return { values, status, error };
+  // How far along it is, is for its keeper to say in the list of every piece. Here it is only begun:
+  // a new piece that is published was finished, and one that was not started is in progress once it has words.
+  const stage = !post ? (status === "published" ? "finished" : written ? "in-progress" : "not-started") : post.stage === "not-started" && written ? "in-progress" : null;
+  const error =
+    !written && !values.title
+      ? "There is nothing to save yet."
+      : values.title.length > 200
+        ? "Keep the title under 200 characters."
+        : curation?.error || null;
+  return { values, status, stage, curation: curation?.values, error };
 }
 
 /**
- * What a new post answers, if it is a commentary. Any member may write one on
- * what is published; a post that answers nothing is for admins to start, and
- * for the sub-admins who have been given that.
+ * What a new post answers, if it is a commentary. Those who publish may
+ * write one on what is published; anything else a member would add goes to
+ * selection as a piece of its own.
  */
 function answered(ctx, value) {
-  if (!value) {
-    if (!may(ctx, "write"))
-      throw new HttpError(403, "Only an admin can start a new post. To answer one, open it and write a commentary.");
-    return null;
-  }
+  if (!value) return null;
+  if (!may(ctx, "write")) throw new HttpError(403, "Only those who publish here can answer a piece with a commentary.");
   const post = /^[1-9]\d{0,14}$/.test(value) ? posts.byId(Number(value)) : null;
   if (!post || post.status !== "published")
     throw new HttpError(404, "That post is no longer here to write a commentary on.");
   return post;
 }
 
-router.get("/write", member, (ctx) => {
+/** whether a piece stands at the centre of the corpus, where what is said of it is its claims */
+const atCentre = (post) => Boolean(post) && posts.centre()?.id === post.id;
+
+router.get("/write", publisher, (ctx) => {
   const on = answered(ctx, ctx.url.searchParams.get("on") || "");
   send(ctx.res, 200, writePage({ session: ctx.session, on }));
 });
 
-router.post("/write", member, form, (ctx) => {
+router.post("/write", publisher, form, (ctx) => {
   const on = answered(ctx, field(ctx, "on"));
-  const { values, status, error } = readPost(ctx);
+  const { values, status, stage, curation, error } = readPost(ctx);
   if (error) return send(ctx.res, 422, writePage({ session: ctx.session, on, values, error }));
   const id = posts.create({
     authorId: ctx.session.user.id,
@@ -326,27 +405,37 @@ router.post("/write", member, form, (ctx) => {
     title: values.title || null,
     body: values.body,
     status,
+    stage,
   });
+  if (curation) posts.curate(id, curation);
   postSaved(id, { by: ctx.session.user.id });
   redirect(ctx.res, `/p/${id}`);
 });
 
-router.get("/p/:id/edit", member, (ctx) =>
-  send(ctx.res, 200, writePage({ session: ctx.session, post: ownPost(ctx) }))
-);
+router.get("/p/:id/edit", member, (ctx) => {
+  const post = ownPost(ctx);
+  // a work is changed with the form it was added with
+  if (post.kind === "work") return editWork(ctx, post);
+  send(ctx.res, 200, writePage({ session: ctx.session, post, centre: atCentre(post) }));
+});
 
 router.post("/p/:id/edit", member, form, (ctx) => {
   const post = ownPost(ctx);
-  const { values, status, error } = readPost(ctx);
-  if (error) return send(ctx.res, 422, writePage({ session: ctx.session, post, values, error }));
+  if (post.kind === "work") return saveWork(ctx, post);
+  const { values, status, stage, curation, error } = readPost(ctx, post);
+  const again = (code, message) =>
+    send(ctx.res, code, writePage({ session: ctx.session, post, centre: atCentre(post), values, error: message }));
+  if (error) return again(422, error);
   // the form says which saving of the post it began from; if someone has saved since, say so
   // rather than write over what they did. Sent again from this page, it goes through.
   const base = field(ctx, "base");
-  if (base && base !== post.updated_at) {
-    const clash = `This was changed${post.version ? `, and is now at version ${post.version},` : ""} while you were writing. What you wrote is still below. Look at the current text in another tab, bring across anything you want to keep, then save again to put yours in its place.`;
-    return send(ctx.res, 409, writePage({ session: ctx.session, post, values, error: clash }));
-  }
-  posts.update(post.id, { title: values.title || null, body: values.body, status });
+  if (base && base !== post.updated_at)
+    return again(
+      409,
+      "This was changed while you were writing. What you wrote is still below. Look at the current text in another tab, bring across anything you want to keep, then save again to put yours in its place."
+    );
+  posts.update(post.id, { title: values.title || null, body: values.body, status, stage });
+  if (curation) posts.curate(post.id, curation);
   postSaved(post.id, { by: ctx.session.user.id, summary: values.summary });
   redirect(ctx.res, `/p/${post.id}`);
 });
@@ -358,52 +447,66 @@ router.post("/preview", member, form, async (ctx) => {
   sendJson(ctx.res, 200, { html: typeset(renderPost(body, { initial: Boolean(field(ctx, "title")) })) });
 });
 
+/* the same text set out for the editor's page: each paragraph, heading, list and figure with the words that made it */
+router.post("/blocks", member, form, async (ctx) => {
+  const body = (ctx.form.get("body") || "").replace(/\r\n?/g, "\n");
+  await prepare(body, { keep: false });
+  sendJson(ctx.res, 200, editable(body));
+});
+
 /* --------------------------------------------------------------- versions */
 
-router.get("/p/:id/history", member, (ctx) => {
-  const post = visiblePost(ctx);
-  send(ctx.res, 200, historyPage({ session: ctx.session, post, versions: revisions.list(post.id) }));
-});
+/*
+ * Every wording a piece is published with is kept as a version (see weave.mjs), whether or not
+ * anything is made of it. The pages they are read, compared and put back from are put away, and
+ * are here again when they are asked for.
+ */
+if (config.versions) {
+  router.get("/p/:id/history", member, (ctx) => {
+    const post = visiblePost(ctx);
+    send(ctx.res, 200, historyPage({ session: ctx.session, post, versions: revisions.list(post.id) }));
+  });
 
-router.get("/p/:id/v/:n", member, async (ctx) => {
-  const post = visiblePost(ctx);
-  const version = revisions.get(post.id, numericId(ctx.params.n));
-  if (!version) throw new HttpError(404, "This has no such version.");
-  await prepare(version.body);
-  send(ctx.res, 200, versionPage({ session: ctx.session, post, version }));
-});
+  router.get("/p/:id/v/:n", member, async (ctx) => {
+    const post = visiblePost(ctx);
+    const version = revisions.get(post.id, numericId(ctx.params.n));
+    if (!version) throw new HttpError(404, "This has no such version.");
+    await prepare(version.body);
+    send(ctx.res, 200, versionPage({ session: ctx.session, post, version }));
+  });
 
-/** what changed between two versions: by default, what the latest changed */
-router.get("/p/:id/changes", member, (ctx) => {
-  const post = visiblePost(ctx);
-  const asked = (name) => Number.parseInt(ctx.url.searchParams.get(name), 10);
-  const to = asked("to") || post.version;
-  const from = asked("from") || to - 1;
-  const [before, after] = [revisions.get(post.id, from), revisions.get(post.id, to)];
-  if (!before || !after) throw new HttpError(404, "There are no two such versions to compare.");
-  send(
-    ctx.res,
-    200,
-    changesPage({
-      session: ctx.session,
-      post,
-      before,
-      after,
-      versions: revisions.list(post.id),
-      diff: changes(before.body, after.body),
-    })
-  );
-});
+  /** what changed between two versions: by default, what the latest changed */
+  router.get("/p/:id/changes", member, (ctx) => {
+    const post = visiblePost(ctx);
+    const asked = (name) => Number.parseInt(ctx.url.searchParams.get(name), 10);
+    const to = asked("to") || post.version;
+    const from = asked("from") || to - 1;
+    const [before, after] = [revisions.get(post.id, from), revisions.get(post.id, to)];
+    if (!before || !after) throw new HttpError(404, "There are no two such versions to compare.");
+    send(
+      ctx.res,
+      200,
+      changesPage({
+        session: ctx.session,
+        post,
+        before,
+        after,
+        versions: revisions.list(post.id),
+        diff: changes(before.body, after.body),
+      })
+    );
+  });
 
-/** puts an earlier version's wording back, as a new version; nothing is lost by it */
-router.post("/p/:id/restore", member, form, (ctx) => {
-  const post = ownPost(ctx);
-  const version = /^[1-9]\d{0,8}$/.test(field(ctx, "n")) ? revisions.get(post.id, Number(field(ctx, "n"))) : null;
-  if (!version) throw new HttpError(404, "This has no such version.");
-  posts.update(post.id, { title: version.title, body: version.body, status: post.status });
-  postSaved(post.id, { by: ctx.session.user.id, summary: `Restored version ${version.n}` });
-  redirect(ctx.res, `/p/${post.id}`);
-});
+  /** puts an earlier version's wording back, as a new version; nothing is lost by it */
+  router.post("/p/:id/restore", member, form, (ctx) => {
+    const post = ownPost(ctx);
+    const version = /^[1-9]\d{0,8}$/.test(field(ctx, "n")) ? revisions.get(post.id, Number(field(ctx, "n"))) : null;
+    if (!version) throw new HttpError(404, "This has no such version.");
+    posts.update(post.id, { title: version.title, body: version.body, status: post.status });
+    postSaved(post.id, { by: ctx.session.user.id, summary: `Restored version ${version.n}` });
+    redirect(ctx.res, `/p/${post.id}`);
+  });
+}
 
 /* -------------------------------------------------- pictures and diagrams */
 
@@ -422,7 +525,35 @@ router.post("/media", member, async (ctx) => {
   sendJson(ctx.res, 201, { url: await keep(file, { userId: ctx.session.user.id, original }) });
 });
 
-router.get("/media/:name", member, (ctx) => sendMedia(ctx.res, ctx.params.name));
+/**
+ * A picture. Set in a page, it is the picture and nothing else. Opened by
+ * itself it is shown on a page of the forum, which carries its reader's mark
+ * as every page does. Either way the file says who fetched it.
+ */
+router.get("/media/:name", member, async (ctx) => {
+  const { name } = ctx.params;
+  const { session } = ctx;
+  // a browser says when an address is being gone to and not fetched for a page: in a tab, a frame or an app's own window
+  const { "sec-fetch-dest": dest, "sec-fetch-mode": mode } = ctx.req.headers;
+  if (dest === "document" || mode === "navigate") {
+    if (!pictureKept(name)) throw new HttpError(404, "That picture is not here.");
+    return send(ctx.res, 200, picturePage({ session, src: `/media/${name}` }));
+  }
+  slowDown(paced(session.user.id, "pictures"));
+  await sendMedia(ctx.res, name, markNote(session));
+});
+
+/** the mark laid over this session's pages: who is reading, and when */
+router.get("/mark/:name", member, (ctx) => {
+  const named = markNamed(ctx.params.name, ctx.session);
+  if (!named) throw new HttpError(404, NOT_FOUND);
+  send(ctx.res, 200, markSvg(markWords(ctx.session, named.day), named.theme), {
+    "Content-Type": "image/svg+xml",
+    // it is one member's, and the same all day
+    "Cache-Control": "private, max-age=86400",
+    "Content-Security-Policy": INERT,
+  });
+});
 
 router.get("/tex/:file", member, (ctx) => {
   const svg = /^[0-9a-f]{32}\.svg$/.test(ctx.params.file) ? svgOf(ctx.params.file.slice(0, 32)) : null;
@@ -439,52 +570,11 @@ router.post("/p/:id/delete", member, form, (ctx) => {
   const post = ownPost(ctx);
   posts.remove(post.id);
   indexLinks(post.id);
+  // back to where it was listed: under what it answered, or in the list of every piece
   redirect(ctx.res, post.parent_id && post.parent_status === "published" ? `/p/${post.parent_id}#commentaries` : "/");
 });
 
-/* -------------------------------------------- the graph, people and names */
-
-// setting a graph out takes a moment, so the latest drawings are kept while nothing has changed
-const MOST_DRAWN = 24;
-const drawn = new Map();
-
-function setOut({ nodes, edges }) {
-  const key = JSON.stringify([nodes.map((node) => [node.id, node.label, node.weight]), edges]);
-  let sheet = drawn.get(key);
-  drawn.delete(key);
-  sheet ||= layout(nodes, edges);
-  drawn.set(key, sheet);
-  if (drawn.size > MOST_DRAWN) drawn.delete(drawn.keys().next().value);
-  return sheet;
-}
-
-const REACHES = { 1: 1, 2: 2, 3: 3, all: Infinity };
-
-/**
- * The whole graph, or with ?around=p12 (a post) or ?around=u3 (a member) the
- * part of it within ?reach= steps of that node.
- */
-router.get("/graph", member, (ctx) => {
-  const query = ctx.url.searchParams;
-  const around = /^[pu][1-9]\d{0,14}$/.test(query.get("around") || "") ? query.get("around") : null;
-  const reach = Object.hasOwn(REACHES, query.get("reach")) ? query.get("reach") : "1";
-  // a member can only be looked around with the people showing
-  const people = query.get("show") !== "articles" || around?.[0] === "u";
-  const whole = graphData({ people });
-  const part = around ? neighbourhood(whole, around, REACHES[reach]) : null;
-  send(
-    ctx.res,
-    200,
-    graphPage({
-      session: ctx.session,
-      graph: setOut(part || whole),
-      counts: whole.counts,
-      people,
-      focus: part ? { id: around, reach, of: whole.nodes.length } : null,
-      missing: Boolean(around && !part),
-    })
-  );
-});
+/* --------------------------------------------------------- people and names */
 
 router.get("/m/:username", member, (ctx) => {
   const person = users.byUsername(ctx.params.username);
@@ -495,7 +585,8 @@ router.get("/m/:username", member, (ctx) => {
     memberPage({
       session: ctx.session,
       person,
-      posts: posts.byAuthor(person.id),
+      // a piece put here for someone else, with a letter after its title to say so, is not this member's writing
+      posts: posts.byAuthor(person.id).filter((post) => !post.hand),
       notes: notes.byUser(person.id),
       main: users.main()?.id === person.id,
     })
@@ -549,23 +640,6 @@ router.get("/members", keeper, (ctx) => {
   send(ctx.res, 200, membersView(ctx, { changed: changed && changed.role !== "admin" ? changed : null }));
 });
 
-router.post("/members", keeper, form, async (ctx) => {
-  const values = { name: field(ctx, "name").replace(/\s+/g, " "), username: field(ctx, "username") };
-  const error =
-    !values.name || values.name.length > 80
-      ? "Give their name, up to 80 characters."
-      : !/^[A-Za-z0-9._-]{2,32}$/.test(values.username)
-        ? "A sign-in name is 2 to 32 letters, digits, dots, dashes or underscores."
-        : users.byUsername(values.username)
-          ? "That sign-in name is taken."
-          : null;
-  if (error) return send(ctx.res, 422, membersView(ctx, { error, values }));
-
-  const password = generatePassword();
-  users.create({ ...values, passwordHash: await hashPassword(password) });
-  send(ctx.res, 201, membersView(ctx, { issued: { ...values, password } }));
-});
-
 /** the main admin hands that place on to another admin; nobody else can */
 router.post("/members/:id/main", admin, form, (ctx) => {
   if (users.main()?.id !== ctx.session.user.id) throw new HttpError(403, "Only the main admin can hand that place on.");
@@ -573,6 +647,7 @@ router.post("/members/:id/main", admin, form, (ctx) => {
   if (!target) throw new HttpError(404, "No such member.");
   if (target.role !== "admin" || !target.active) throw new HttpError(400, "Only an admin can be made the main admin.");
   users.setMain(target.id);
+  adminLog.record({ by: ctx.session.user.id, action: "main", member: target.id });
   redirect(ctx.res, "/members");
 });
 
@@ -596,7 +671,9 @@ router.get("/members/:id/permissions", admin, (ctx) =>
 router.post("/members/:id/permissions", admin, form, (ctx) => {
   const target = grantee(ctx);
   // whatever is not a permission is passed over, and with nothing ticked they are a member again
-  users.setPermissions(target.id, permissionKeys(ctx.form.getAll("can")));
+  const keys = permissionKeys(ctx.form.getAll("can"));
+  users.setPermissions(target.id, keys);
+  adminLog.record({ by: ctx.session.user.id, action: "permissions", member: target.id, detail: keys.join(" ") });
   redirect(ctx.res, `/members?changed=${target.id}`);
 });
 
@@ -608,6 +685,7 @@ router.post("/members/:id/password", keeper, form, async (ctx) => {
   const password = generatePassword();
   users.setPassword(target.id, await hashPassword(password));
   destroySessionsFor(target.id);
+  adminLog.record({ by: ctx.session.user.id, action: "password", member: target.id });
   send(ctx.res, 200, membersView(ctx, { issued: { name: target.name, username: target.username, password } }));
 });
 
@@ -618,49 +696,38 @@ router.post("/members/:id/remove", keeper, form, (ctx) => {
   // whoever comes back comes back as a member: what a sub-admin could do is an admin's to give again
   users.setPermissions(target.id, []);
   destroySessionsFor(target.id);
+  adminLog.record({ by: ctx.session.user.id, action: "removed", member: target.id });
   redirect(ctx.res, "/members");
 });
 
 router.post("/members/:id/restore", keeper, form, (ctx) => {
-  users.setActive(otherMember(ctx).id, true);
+  const target = otherMember(ctx);
+  users.setActive(target.id, true);
+  adminLog.record({ by: ctx.session.user.id, action: "restored", member: target.id });
   redirect(ctx.res, "/members");
 });
 
 /* ---------------------------------------------------------------- account */
 
-/** where the member has been tagged, and which of those are new since they last looked */
-function tagsFor(ctx) {
-  const { user } = ctx.session;
-  const seenAt = users.byId(user.id).mentions_seen_at || "";
-  return mentions.forUser(user.id).map((tag) => ({ ...tag, fresh: tag.created_at > seenAt }));
-}
-
-/** the account page: where the member was tagged, how the pages look, where they are signed in */
-const accountView = (ctx, extra = {}) =>
-  accountPage({
-    session: ctx.session,
-    tags: tagsFor(ctx),
-    sessions: sessionsFor(ctx.session.user.id),
-    ...extra,
-  });
+/* a member's preferences: the lighting of the pages, and their password */
 
 const THEMES = ["night", "paper"];
 
-/* what the account page says after something was done there, and under which of its headings */
-const SAID = {
-  password: { text: "Your password has been changed, and you have been signed out everywhere else.", of: "account" },
-  elsewhere: { text: "You have been signed out everywhere but here.", of: "sessions" },
-  ended: { text: "That session has been ended.", of: "sessions" },
-};
-
-router.get("/account", member, (ctx) => {
-  const done = ctx.url.searchParams.get("done");
-  const view = accountView(ctx, { said: Object.hasOwn(SAID, done) ? SAID[done] : null });
-  // looking at the list is what marks it as seen
-  mentions.markSeen(ctx.session.user.id);
-  ctx.session.tagged = 0;
-  send(ctx.res, 200, view);
-});
+router.get("/account", member, (ctx) =>
+  send(
+    ctx.res,
+    200,
+    accountPage({
+      session: ctx.session,
+      texts: textsOf(users.byId(ctx.session.user.id)),
+      said:
+        {
+          password: "Your password has been changed, and you have been signed out everywhere else.",
+          texts: "Saved.",
+        }[ctx.url.searchParams.get("done")] ?? null,
+    })
+  )
+);
 
 router.post("/account/password", member, form, async (ctx) => {
   const current = ctx.form.get("current") || "";
@@ -675,7 +742,7 @@ router.post("/account/password", member, form, async (ctx) => {
       : password === current
         ? "That is the password you have now. Choose a new one."
         : passwordProblem(password, user);
-  if (error) return send(ctx.res, 422, accountView(ctx, { error }));
+  if (error) return send(ctx.res, 422, accountPage({ session: ctx.session, error, texts: textsOf(user) }));
   signInSucceeded(key);
   users.setPassword(user.id, await hashPassword(password));
   destroySessionsFor(user.id, ctx.session.tokenHash);
@@ -687,29 +754,18 @@ router.post("/account/theme", member, form, (ctx) => {
   const theme = field(ctx, "theme");
   if (!THEMES.includes(theme)) throw new HttpError(400, "There is no such way for the pages to look.");
   users.setTheme(ctx.session.user.id, theme);
-  redirect(ctx.res, "/account#looks");
+  redirect(ctx.res, "/account#lighting");
 });
 
-/** signs the member out everywhere but where they are asking from */
-router.post("/account/sessions/end", member, form, (ctx) => {
-  destroySessionsFor(ctx.session.user.id, ctx.session.tokenHash);
-  redirect(ctx.res, "/account?done=elsewhere#sessions");
-});
+/* --------------------------- the corpus, and what is put away or brought back */
 
-/** ends one of the member's own sessions; the one they are in is ended by signing out */
-router.post("/account/sessions/:id/end", member, form, (ctx) => {
-  const id = numericId(ctx.params.id);
-  if (id === ctx.session.id) throw new HttpError(400, "That is the session you are in. Sign out to end it.");
-  if (!destroySessionOf(ctx.session.user.id, id)) throw new HttpError(404, "That session has already ended.");
-  redirect(ctx.res, "/account?done=ended#sessions");
-});
-
-/* ------------------------------------- conversations, projects, the guide */
-
-chatRoutes(router);
-projectRoutes(router);
-
-router.get("/guide", member, (ctx) => send(ctx.res, 200, guidePage({ session: ctx.session, diagrams: canDraw })));
+corpusRoutes(router);
+pushRoutes(router);
+numberRoutes(router);
+relayRoutes(router);
+// the projects have a conversation each, which is there when the conversations are
+if (config.messages) chatRoutes(router);
+if (config.projects) projectRoutes(router);
 
 /* ----------------------------------------------------------- static files */
 
@@ -764,8 +820,9 @@ async function handle(req, res) {
     if (status === 500) console.error(err);
     if (res.headersSent) return res.destroy();
     const message = known || busy ? err.message : status === 404 ? NOT_FOUND : "Something went wrong.";
-    if (wantsJson(req)) return sendJson(res, status, { error: message });
-    send(res, status, errorPage({ status, message, session: ctx.session }), busy ? { "Retry-After": "5" } : {});
+    const headers = busy ? { "Retry-After": "5" } : known ? err.headers : {};
+    if (wantsJson(req)) return send(res, status, JSON.stringify({ error: message }), { "Content-Type": "application/json; charset=utf-8", ...headers });
+    send(res, status, errorPage({ status, message, session: ctx.session }), headers);
   }
 }
 
@@ -787,6 +844,10 @@ indexLinks();
 
 sweepSessions();
 setInterval(sweepSessions, 24 * 60 * 60 * 1000).unref();
+lapseInvitations();
+relay.start();
+setInterval(lapseInvitations, 6 * 60 * 60 * 1000).unref();
+setInterval(sweepPace, 60 * 60 * 1000).unref();
 
 const server = createServer(serve);
 // a visitor who opens a connection and then says nothing, or says it a byte at a time, is not waited on for long

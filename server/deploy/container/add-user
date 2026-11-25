@@ -1,0 +1,13 @@
+#!/bin/sh
+# The forum's add-user, for a shell inside the container, where there is no
+# npm script to hand and the shell is root's:
+#
+#   add-user --admin zan "Zan Huang"      adds an admin; without --admin, a member
+#   add-user --reset zan                  gives someone a new password
+#   add-user --rename zan "Zan H."        changes the name someone is shown by
+#   add-user --main zan                   names the main admin
+#
+# On Fly.io, from your own machine:
+#
+#   fly ssh console -C 'add-user --admin zan "Zan Huang"'
+exec /usr/local/bin/as-forum node /app/server/bin/add-user.mjs "$@"

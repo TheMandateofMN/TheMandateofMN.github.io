@@ -301,6 +301,257 @@ const MIGRATIONS = [
   -- none, and what is here is not looked at for one.
   ALTER TABLE users ADD COLUMN permissions TEXT NOT NULL DEFAULT '';
   `,
+
+  // 9: a record of what was done to members, and by whom
+  `
+  -- each thing an admin or a sub-admin did to a member: added, given a new
+  -- password, removed, restored, made or unmade an admin or sub-admin. by_id
+  -- is who did it, and is null for what was done from the server itself, by
+  -- the admin portal or the command line. No password is ever written here.
+  CREATE TABLE admin_log (
+    id        INTEGER PRIMARY KEY,
+    at        TEXT NOT NULL,
+    by_id     INTEGER REFERENCES users (id),
+    action    TEXT NOT NULL,
+    member_id INTEGER REFERENCES users (id),
+    detail    TEXT
+  );
+  `,
+
+  // 10: notifications on a member's own devices
+  `
+  -- what a member has chosen to be told of, as keys with spaces between (see src/push.mjs)
+  ALTER TABLE users ADD COLUMN notify TEXT NOT NULL DEFAULT 'direct project tags words';
+
+  -- What a browser subscribed with: its address at a push service, and the keys what is sent
+  -- there is encrypted to. It belongs to the session it was made in, and goes when that ends.
+  CREATE TABLE push_subscriptions (
+    id           INTEGER PRIMARY KEY,
+    user_id      INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    session_hash TEXT NOT NULL REFERENCES sessions (token_hash) ON DELETE CASCADE,
+    endpoint     TEXT NOT NULL UNIQUE,
+    p256dh       TEXT NOT NULL,
+    auth         TEXT NOT NULL,
+    failures     INTEGER NOT NULL DEFAULT 0,
+    told_at      TEXT,
+    created_at   TEXT NOT NULL
+  );
+  CREATE INDEX push_subscriptions_user ON push_subscriptions (user_id);
+  CREATE INDEX push_subscriptions_session ON push_subscriptions (session_hash);
+  `,
+
+  // 11: the corpus has two layers, and paper is the page everyone begins on
+  `
+  -- A post is a piece of 'writing', or a 'work': a book, a film, anything made elsewhere that
+  -- the writing here descends from. A work is a post like any other, with notes in its margin
+  -- and commentaries on it. Its title is the work's and its text is what is said for it; these
+  -- say whose it is, what kind of thing, when it was made, where it is to be found, and the
+  -- lineage it is set in.
+  ALTER TABLE posts ADD COLUMN kind TEXT NOT NULL DEFAULT 'writing' CHECK (kind IN ('writing', 'work'));
+  ALTER TABLE posts ADD COLUMN creator TEXT;
+  ALTER TABLE posts ADD COLUMN medium TEXT;
+  ALTER TABLE posts ADD COLUMN year TEXT;
+  ALTER TABLE posts ADD COLUMN link TEXT;
+  ALTER TABLE posts ADD COLUMN lineage TEXT COLLATE NOCASE;
+  CREATE INDEX posts_lineage ON posts (kind, lineage);
+
+  -- Paper is what a member reads on unless they choose night. Night was what everyone was given
+  -- before, so its being on an account says nothing of that member having chosen it.
+  UPDATE users SET theme = 'paper';
+  `,
+
+  // 12: what the corpus says of a piece besides its words
+  `
+  -- A few words on a piece, kept folded away on the corpus until its title is chosen: for a work,
+  -- where it is strong and where it falls short; for the essay at the centre, its claims as a list.
+  ALTER TABLE posts ADD COLUMN annotation TEXT;
+  -- a work that both shows and tells: marked on the corpus only when that is asked for
+  ALTER TABLE posts ADD COLUMN show_tell INTEGER NOT NULL DEFAULT 0;
+  -- a piece meant for the wider public as well as for those who sign in
+  ALTER TABLE posts ADD COLUMN missionaria INTEGER NOT NULL DEFAULT 0;
+  -- How a piece written here is coloured on the corpus, where it is not the green they all are:
+  -- 'light' is the lighter green, 'graft' the brown and green of one grafted onto an earlier work.
+  ALTER TABLE posts ADD COLUMN tone TEXT NOT NULL DEFAULT '' CHECK (tone IN ('', 'light', 'graft'));
+  -- a letter set above the end of a title to say whose a piece is, where no author is named
+  ALTER TABLE posts ADD COLUMN hand TEXT;
+  `,
+
+  // 13: those who are invited by a text to their telephone, and what they are sent
+  `
+  -- Someone the main admin means to invite, in the order they were put down. The number is kept
+  -- sealed (see numbers.mjs), and beside it a keyed mark of it, by which the same number is known
+  -- again without being read. user_id is their account, once they have taken it up.
+  CREATE TABLE contacts (
+    id          INTEGER PRIMARY KEY,
+    position    INTEGER NOT NULL,
+    name        TEXT NOT NULL,
+    number      TEXT NOT NULL,
+    number_mark TEXT NOT NULL UNIQUE,
+    user_id     INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    -- how many times they have been written to about the account that waits for them, and when last
+    told        INTEGER NOT NULL DEFAULT 0,
+    told_at     TEXT,
+    -- when they took the account up by choosing a password
+    accepted_at TEXT,
+    -- when the time they were given to take it up ran out
+    lapsed_at   TEXT,
+    -- when the carrier said they have asked to be sent nothing more
+    stopped_at  TEXT,
+    created_at  TEXT NOT NULL
+  );
+  CREATE INDEX contacts_by_position ON contacts (position, id);
+  CREATE INDEX contacts_by_user ON contacts (user_id);
+
+  -- The link someone is sent, by which they take up the account that waits for them. Only a hash
+  -- of it is kept. The account itself is made when they take it up: until then there is nothing
+  -- of theirs among the members, and when the link runs out there is nothing to delete but this.
+  CREATE TABLE invitations (
+    token_hash TEXT PRIMARY KEY,
+    contact_id INTEGER NOT NULL REFERENCES contacts (id) ON DELETE CASCADE,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX invitations_by_contact ON invitations (contact_id);
+
+  -- Every text that was sent or could not be: to whom, about what, and how it went. Neither the
+  -- number nor the words are kept here.
+  CREATE TABLE texts (
+    id         INTEGER PRIMARY KEY,
+    contact_id INTEGER NOT NULL REFERENCES contacts (id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL CHECK (kind IN ('invite', 'piece')),
+    post_id    INTEGER REFERENCES posts (id) ON DELETE SET NULL,
+    ok         INTEGER NOT NULL,
+    detail     TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX texts_by_contact ON texts (contact_id, id);
+  CREATE INDEX texts_by_post ON texts (post_id, contact_id);
+
+  -- which texts a member has asked for about what is published: 'all', 'some', both or neither
+  ALTER TABLE users ADD COLUMN texts TEXT NOT NULL DEFAULT '';
+  `,
+
+  // 14: what the main admin sends from here to group chats kept elsewhere, on Signal and WhatsApp
+  `
+  -- A group chat on another service that what is sent from here can go to. The account it is
+  -- reached through is linked to this server as one more of its owner's devices, and what that
+  -- takes is kept beside the database, not in it. 'address' is what the service calls the group.
+  CREATE TABLE outside_chats (
+    id         INTEGER PRIMARY KEY,
+    platform   TEXT NOT NULL,
+    address    TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    position   INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (platform, address)
+  );
+
+  -- Something sent: its words, and below, its files and where it was to go.
+  CREATE TABLE dispatches (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    body       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
+  -- A file to be sent. It is taken before what it goes with is sent, so until then it belongs
+  -- to nothing. 'folder' is where it stands under the outbox; once everything it was for has
+  -- gone it is deleted from there, and 'removed_at' says when.
+  CREATE TABLE dispatch_files (
+    id          INTEGER PRIMARY KEY,
+    dispatch_id INTEGER REFERENCES dispatches(id) ON DELETE CASCADE,
+    user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    folder      TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL,
+    bytes       INTEGER NOT NULL,
+    created_at  TEXT NOT NULL,
+    removed_at  TEXT
+  );
+  CREATE INDEX dispatch_files_by_dispatch ON dispatch_files (dispatch_id, id);
+
+  -- One thing sent to one chat, and how that went. The chat's name is kept as it was, for
+  -- when the chat itself has been taken off the list.
+  CREATE TABLE deliveries (
+    id          INTEGER PRIMARY KEY,
+    dispatch_id INTEGER NOT NULL REFERENCES dispatches(id) ON DELETE CASCADE,
+    chat_id     INTEGER REFERENCES outside_chats(id) ON DELETE SET NULL,
+    chat_name   TEXT NOT NULL,
+    platform    TEXT NOT NULL,
+    state       TEXT NOT NULL DEFAULT 'waiting' CHECK (state IN ('waiting', 'sent', 'failed')),
+    detail      TEXT,
+    updated_at  TEXT NOT NULL
+  );
+  CREATE INDEX deliveries_by_dispatch ON deliveries (dispatch_id, id);
+  `,
+
+  // 15: someone can be invited by a link handed to them, with no number kept of them
+  `
+  -- The list of those invited is made again so that a number is no longer required: SQLite
+  -- cannot loosen a column where it stands. Dropping the old list would take with it the
+  -- links and the record of texts that hang from it, so those are set aside and put back.
+  CREATE TABLE contacts_remade (
+    id          INTEGER PRIMARY KEY,
+    position    INTEGER NOT NULL,
+    name        TEXT NOT NULL,
+    -- sealed, with the keyed mark by which the same number is known again; both absent for
+    -- someone who is to be handed a link and never texted
+    number      TEXT,
+    number_mark TEXT UNIQUE,
+    user_id     INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    told        INTEGER NOT NULL DEFAULT 0,
+    told_at     TEXT,
+    accepted_at TEXT,
+    lapsed_at   TEXT,
+    stopped_at  TEXT,
+    created_at  TEXT NOT NULL,
+    -- when an admin last made a link for them to pass on by hand
+    linked_at   TEXT
+  );
+  INSERT INTO contacts_remade (id, position, name, number, number_mark, user_id, told, told_at, accepted_at, lapsed_at, stopped_at, created_at)
+    SELECT id, position, name, number, number_mark, user_id, told, told_at, accepted_at, lapsed_at, stopped_at, created_at FROM contacts;
+  CREATE TEMP TABLE invitations_aside AS SELECT * FROM invitations;
+  CREATE TEMP TABLE texts_aside AS SELECT * FROM texts;
+  DROP TABLE contacts;
+  ALTER TABLE contacts_remade RENAME TO contacts;
+  CREATE INDEX contacts_by_position ON contacts (position, id);
+  CREATE INDEX contacts_by_user ON contacts (user_id);
+  INSERT INTO invitations (token_hash, contact_id, expires_at) SELECT token_hash, contact_id, expires_at FROM invitations_aside;
+  INSERT INTO texts (id, contact_id, kind, post_id, ok, detail, created_at)
+    SELECT id, contact_id, kind, post_id, ok, detail, created_at FROM texts_aside;
+  DROP TABLE invitations_aside;
+  DROP TABLE texts_aside;
+  `,
+
+  // 16: how far along a piece is, the order its keeper lists it in, and where it stands on the corpus
+  `
+  -- A piece that is not published is somewhere on the way to it, and its keeper says where. What
+  -- was under review had been written; what is published was finished, should it ever be taken back.
+  ALTER TABLE posts ADD COLUMN stage TEXT NOT NULL DEFAULT 'in-progress'
+    CHECK (stage IN ('not-started', 'in-progress', 'drafted', 'finished'));
+  UPDATE posts SET stage = CASE status WHEN 'draft' THEN 'drafted' ELSE 'finished' END;
+
+  -- The pieces are listed in the order their keeper puts them in, the lowest first. A new one
+  -- goes to the head of the list, which is where the latest were until now.
+  ALTER TABLE posts ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+  UPDATE posts SET position = -id;
+
+  -- Where a piece's title stands on the corpus, once its keeper has dragged it there: so far
+  -- right of the essay in the middle, and so far below it. Until then it is found a place.
+  ALTER TABLE posts ADD COLUMN corpus_x REAL;
+  ALTER TABLE posts ADD COLUMN corpus_y REAL;
+
+  -- What a work can be said to be was chosen again: a book is the whole of one or a part of it,
+  -- and whatever is watched is a video.
+  UPDATE posts SET medium = 'Book (whole)' WHERE kind = 'work' AND medium = 'Book';
+  UPDATE posts SET medium = 'Video' WHERE kind = 'work' AND medium IN ('Film', 'Series');
+
+  -- A work has one thing said of it now, its annotations, which are its text. What was kept
+  -- apart, to open under its title on the corpus, joins what was said for it.
+  UPDATE posts
+    SET body = CASE WHEN trim(body) = '' THEN annotation ELSE body || char(10) || char(10) || annotation END,
+        annotation = NULL
+    WHERE kind = 'work' AND annotation IS NOT NULL AND trim(annotation) <> '';
+  `,
 ];
 
 // the folder holds every member's writing and password hash: it is for this server's user alone
@@ -387,7 +638,7 @@ export const users = {
   create({ username, name, passwordHash, role = "member" }) {
     const { lastInsertRowid } = db
       .prepare(
-        "INSERT INTO users (username, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO users (username, name, password_hash, role, theme, created_at) VALUES (?, ?, ?, ?, 'paper', ?)"
       )
       .run(username, name, passwordHash, role, now());
     return Number(lastInsertRowid);
@@ -397,11 +648,44 @@ export const users = {
   setName: (id, name) => db.prepare("UPDATE users SET name = ? WHERE id = ?").run(name, id),
   /** how the pages look to this member: "night" or "paper" */
   setTheme: (id, theme) => db.prepare("UPDATE users SET theme = ? WHERE id = ?").run(theme, id),
+  /** what a member is told of on their devices, as the keys of src/push.mjs */
+  setNotify: (id, keys) => db.prepare("UPDATE users SET notify = ? WHERE id = ?").run(keys.join(" "), id),
   setActive: (id, active) =>
     db.prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, id),
+  /** "admin" or "member"; only the server's own tools change it, never a page of the forum */
+  setRole: (id, role) => db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id),
   /** what a member may do besides what any member may: the keys of their permissions, or none of them */
   setPermissions: (id, keys) =>
     db.prepare("UPDATE users SET permissions = ? WHERE id = ?").run(keys.join(" "), id),
+};
+
+/*
+ * What has been done to members, kept so that the admins can see it
+ * afterwards. `action` is one of: added, password, removed, restored,
+ * permissions, role, main, renamed, signed-out; and, for those who are invited and
+ * are not members yet, invite-added, invite-link, invite-text, invite-texts
+ * and invite-removed, with their name as the detail and no member. `by` is
+ * the member who did it, or nothing for what was done from the server
+ * itself.
+ */
+export const adminLog = {
+  record: ({ by = null, action, member = null, detail = null }) =>
+    db
+      .prepare("INSERT INTO admin_log (at, by_id, action, member_id, detail) VALUES (?, ?, ?, ?, ?)")
+      .run(now(), by, action, member, detail),
+  /** the latest first, each with the names of who did it and to whom */
+  latest: (limit = 100) =>
+    db
+      .prepare(
+        `SELECT admin_log.id, admin_log.at, admin_log.action, admin_log.detail,
+                admin_log.by_id, by_user.name AS by_name, by_user.username AS by_username,
+                admin_log.member_id, member.name AS member_name, member.username AS member_username
+         FROM admin_log
+         LEFT JOIN users AS by_user ON by_user.id = admin_log.by_id
+         LEFT JOIN users AS member ON member.id = admin_log.member_id
+         ORDER BY admin_log.id DESC LIMIT ?`
+      )
+      .all(limit),
 };
 
 /* ----------------------------------------------------------------- posts */
@@ -428,7 +712,7 @@ const POST = `
     (SELECT MAX(n) FROM revisions WHERE revisions.post_id = posts.id) AS version,
     (SELECT created_at FROM revisions WHERE revisions.post_id = posts.id ORDER BY n DESC LIMIT 1)
       AS revised_at,
-    (posts.status = 'published' AND posts.author_id = ${MAIN_ADMIN}) AS canon
+    (posts.status = 'published' AND posts.kind = 'writing' AND posts.hand IS NULL AND posts.author_id = ${MAIN_ADMIN}) AS canon
   FROM posts
   JOIN users ON users.id = posts.author_id
   LEFT JOIN posts AS parent ON parent.id = posts.parent_id
@@ -446,18 +730,18 @@ export const posts = {
          ORDER BY published_at, id LIMIT 1`
       )
       .get(title),
-  published: ({ limit, offset }) =>
-    db.prepare(`${POST} WHERE posts.status = 'published' ${NEWEST_FIRST} LIMIT ? OFFSET ?`).all(limit, offset),
-  publishedCount: () =>
-    db.prepare("SELECT COUNT(*) AS n FROM posts WHERE status = 'published'").get().n,
-  /** every draft, or with `authorId` only that member's own */
-  drafts: (authorId = null) =>
+  /**
+   * Every piece there is, written here or made elsewhere, for the list they are kept track of in,
+   * in the order their keeper has put them in. With `own`, what is not published is left out
+   * unless it is that member's: the rest of it is for those who edit.
+   */
+  ledger: ({ own = null } = {}) =>
     db
       .prepare(
-        `${POST} WHERE posts.status = 'draft' AND (? IS NULL OR posts.author_id = ?)
-         ORDER BY posts.updated_at DESC`
+        `${POST} WHERE (posts.status = 'published' OR ? IS NULL OR posts.author_id = ?)
+         ORDER BY posts.position, posts.id DESC`
       )
-      .all(authorId, authorId),
+      .all(own, own),
   /** what has been published in answer to a post, oldest first */
   commentaries: (id) =>
     db
@@ -476,14 +760,43 @@ export const posts = {
       .all(id),
   byAuthor: (authorId) =>
     db.prepare(`${POST} WHERE posts.author_id = ? AND posts.status = 'published' ${NEWEST_FIRST}`).all(authorId),
-  /** the canon: what the main admin has published, in the order it was */
+  /**
+   * The canon: what the main admin has published as their own, in the order it was. A piece with
+   * a letter after its title is someone else's, which the main admin has only put here for them.
+   */
   canon: () =>
     db
       .prepare(
-        `${POST} WHERE posts.status = 'published' AND posts.author_id = ${MAIN_ADMIN}
+        `${POST} WHERE posts.status = 'published' AND posts.kind = 'writing' AND posts.hand IS NULL
+           AND posts.author_id = ${MAIN_ADMIN}
          ORDER BY posts.published_at, posts.id`
       )
       .all(),
+  /** whose the works are, each name once as it was first written, to be offered when another of theirs is added */
+  creators: () =>
+    db
+      .prepare(
+        `SELECT MIN(creator) AS name FROM posts WHERE kind = 'work' AND creator IS NOT NULL
+         GROUP BY creator COLLATE NOCASE ORDER BY creator COLLATE NOCASE`
+      )
+      .all()
+      .map((row) => row.name),
+  /**
+   * The essay the corpus is drawn around: the one that was chosen, while it
+   * is still published; failing that the earliest article of the canon, and
+   * failing that the earliest article there is.
+   */
+  centre: () =>
+    db
+      .prepare(
+        `SELECT posts.id, posts.title FROM posts
+         WHERE posts.status = 'published' AND posts.kind = 'writing' AND posts.title IS NOT NULL
+         ORDER BY posts.id = COALESCE((SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'corpus_centre'), 0) DESC,
+                  posts.parent_id IS NOT NULL, posts.author_id = ${MAIN_ADMIN} DESC, posts.published_at, posts.id
+         LIMIT 1`
+      )
+      .get() ?? null,
+  setCentre: (id) => settings.set("corpus_centre", id),
   /** the titles that can be linked to by name, newest first */
   titles: (limit = 500) =>
     db
@@ -493,26 +806,84 @@ export const posts = {
       )
       .all(limit)
       .map((row) => row.title),
-  /** with `parentId`, a commentary on that post */
-  create({ authorId, title, body, status, parentId = null }) {
+  /**
+   * With `parentId`, a commentary on that post; with `work`, a work, of which that says the rest.
+   * `stage` is how far along it is, which is what is said of it until it is published. It goes
+   * to the head of the list of every piece.
+   */
+  create({ authorId, title, body, status, stage = "in-progress", parentId = null, work = null }) {
     const at = now();
     const { lastInsertRowid } = db
       .prepare(
-        `INSERT INTO posts (author_id, parent_id, title, body, status, created_at, published_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO posts (author_id, parent_id, title, body, status, stage, position, created_at, published_at, updated_at,
+                            kind, creator, medium, year, link)
+         VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MIN(position), 0) - 1 FROM posts), ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(authorId, parentId, title, body, status, at, status === "published" ? at : null, at);
+      .run(
+        authorId,
+        parentId,
+        title,
+        body,
+        status,
+        stage,
+        at,
+        status === "published" ? at : null,
+        at,
+        work ? "work" : "writing",
+        work?.creator || null,
+        work?.medium || null,
+        work?.year || null,
+        work?.link || null
+      );
     return Number(lastInsertRowid);
   },
-  /** the first publication date is kept if a post is unpublished and published again */
-  update(id, { title, body, status }) {
+  /** what is said of a work besides its title and its annotations */
+  describe: (id, { creator, medium, year, link }) =>
+    db
+      .prepare("UPDATE posts SET creator = ?, medium = ?, year = ?, link = ? WHERE id = ? AND kind = 'work'")
+      .run(creator || null, medium || null, year || null, link || null, id),
+  /**
+   * What those who keep the corpus say of a piece, which is theirs alone to say: the few words
+   * that open under the title of one written here, whether it shows and tells, whether it is for
+   * the wider public, and for a piece written here how its title is coloured and the letter set after it.
+   */
+  curate: (id, { annotation = "", showTell = false, missionaria = false, tone = "", hand = "" }) =>
+    db
+      .prepare("UPDATE posts SET annotation = ?, show_tell = ?, missionaria = ?, tone = ?, hand = ? WHERE id = ?")
+      .run(annotation || null, showTell ? 1 : 0, missionaria ? 1 : 0, tone || "", hand || null, id),
+  /**
+   * The first publication date is kept if a post is unpublished and published again. With no
+   * `stage`, how far along it was said to be is left as it was.
+   */
+  update(id, { title, body, status, stage = null }) {
     const at = now();
     db.prepare(
-      `UPDATE posts SET title = ?, body = ?, status = ?, updated_at = ?,
+      `UPDATE posts SET title = ?, body = ?, status = ?, stage = COALESCE(?, stage), updated_at = ?,
          published_at = CASE WHEN ? = 'published' THEN COALESCE(published_at, ?) ELSE published_at END
        WHERE id = ?`
-    ).run(title, body, status, at, status, at, id);
+    ).run(title, body, status, stage, at, status, at, id);
   },
+  /** says how far along a piece is, or that it is published, and changes nothing else of it */
+  setStatus(id, { status, stage = null }) {
+    const at = now();
+    db.prepare(
+      `UPDATE posts SET status = ?, stage = COALESCE(?, stage), updated_at = ?,
+         published_at = CASE WHEN ? = 'published' THEN COALESCE(published_at, ?) ELSE published_at END
+       WHERE id = ?`
+    ).run(status, stage, at, status, at, id);
+  },
+  /** puts pieces in the order given, in the list of every piece: `ids` are those of one of its tables, the first first */
+  arrange(ids) {
+    const set = db.prepare("UPDATE posts SET position = ? WHERE id = ?");
+    transaction(() => ids.forEach((id, i) => set.run(i + 1, id)));
+  },
+  /** where each piece's title stands on the corpus: `places` are { id, x, y }, measured from the essay in the middle */
+  place(places) {
+    const set = db.prepare("UPDATE posts SET corpus_x = ?, corpus_y = ? WHERE id = ?");
+    transaction(() => places.forEach(({ id, x, y }) => set.run(x, y, id)));
+  },
+  /** lets every title go back to where the corpus would set it by itself */
+  unplace: () => db.exec("UPDATE posts SET corpus_x = NULL, corpus_y = NULL"),
   remove: (id) => db.prepare("DELETE FROM posts WHERE id = ?").run(id),
 };
 
@@ -656,7 +1027,7 @@ export const mentions = {
   /**
    * Makes the tags in one place exactly `userIds`, keeping the date of those
    * already there. The place is a note or reply, or with no `noteId` the
-   * post's own text.
+   * post's own text. Gives back who was not tagged there before.
    */
   set({ postId, noteId = null, byUserId, userIds }) {
     const wanted = new Set(userIds);
@@ -669,6 +1040,8 @@ export const mentions = {
       "INSERT INTO mentions (user_id, by_user_id, post_id, note_id, created_at) VALUES (?, ?, ?, ?, ?)"
     );
     for (const userId of wanted) add.run(userId, byUserId, postId, noteId, now());
+    // those tagged here for the first time
+    return [...wanted];
   },
   /** where a member has been tagged, newest first */
   forUser: (userId, limit = 30) =>
@@ -721,7 +1094,12 @@ export const activity = {
     db
       .prepare(
         `SELECT posts.id, posts.title, substr(posts.body, 1, 240) AS opening, posts.author_id,
-                posts.published_at, posts.author_id = ${MAIN_ADMIN} AS canon,
+                posts.published_at,
+                (posts.kind = 'writing' AND posts.hand IS NULL AND posts.author_id = ${MAIN_ADMIN}) AS canon,
+                posts.kind, posts.creator, posts.medium, posts.position, posts.corpus_x, posts.corpus_y,
+                -- what opens under a title on the corpus: of a work, its annotations, which are its text
+                CASE WHEN posts.kind = 'work' THEN posts.body ELSE posts.annotation END AS annotation,
+                posts.show_tell, posts.tone, posts.hand,
                 CASE WHEN parent.status = 'published' THEN posts.parent_id END AS parent_id,
                 (SELECT COUNT(*) FROM notes WHERE notes.post_id = posts.id AND notes.removed_at IS NULL)
                   AS said
